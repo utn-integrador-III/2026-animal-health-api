@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import ALLOWED_ORIGINS
-from .routes import auth_routes, pet_routes
+from .api.v1.endpoints import auth_routes, pet_routes
 
 app = FastAPI(
     title="Animal Health Pet Profiles API",
