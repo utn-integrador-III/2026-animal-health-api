@@ -2,7 +2,7 @@
 
 from datetime import date
 import re
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -154,6 +154,36 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     phone: Optional[str] = None
+    profile_image_url: Optional[str] = None
+    unread_notifications: int = 0
+
+
+class UserProfileUpdate(BaseModel):
+    """PUT /auth/profile — editable fields only."""
+
+    full_name: Optional[str] = Field(default=None, min_length=3, max_length=120)
+    phone: Optional[str] = Field(default=None, min_length=8, max_length=20)
+    email: Optional[str] = Field(default=None, min_length=5, max_length=254)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_optional_email(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        value = value.strip().lower()
+        if not EMAIL_PATTERN.fullmatch(value):
+            raise ValueError("Invalid email address")
+        return value
+
+    @field_validator("full_name", "phone")
+    @classmethod
+    def strip_optional_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            raise ValueError("Field cannot be empty")
+        return value
 
 
 class TokenResponse(BaseModel):
@@ -161,6 +191,54 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+class ClientUpdate(BaseModel):
+    """PUT /clients/{id} — partial update."""
 
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+
+
+class ClientResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    role: str
+    phone: Optional[str] = None
+    is_active: bool = True
+    created_at: str
+
+
+class ContactMessageCreate(BaseModel):
+    name: str = Field(min_length=3, max_length=120)
+    email: str = Field(min_length=5, max_length=254)
+    phone: Optional[str] = Field(default=None, max_length=20)
+    subject: str = Field(min_length=3, max_length=120)
+    message: str = Field(min_length=10, max_length=2000)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_contact_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if not EMAIL_PATTERN.fullmatch(value):
+            raise ValueError("Invalid email address")
+        return value
+
+    @field_validator("name", "subject", "message")
+    @classmethod
+    def strip_contact_text(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("phone")
+    @classmethod
+    def strip_contact_phone(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip() if value and value.strip() else None
+
+
+class ContactMessageResponse(BaseModel):
+    id: str
+    status: str
+    created_at: str
+    
 class RegistrationResponse(TokenResponse):
     pet: PetResponse
