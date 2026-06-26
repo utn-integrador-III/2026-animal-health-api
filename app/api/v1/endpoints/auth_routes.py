@@ -2,17 +2,17 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from .. import schemas
-from ..auth import (
+from .... import schemas
+from ....auth import (
     create_access_token,
     get_current_user,
     password_needs_rehash,
     hash_password,
     verify_password,
 )
-from ..constants import ApiPrefix, Collections, UserRole
-from ..firebase_config import get_firestore_db
-from ..services.registration_service import register_client_with_pet
+from ....constants import ApiPrefix, Collections, UserRole
+from ....firebase_config import get_firestore_db
+from ....services.registration_service import register_client_with_pet
 
 router = APIRouter(prefix=ApiPrefix.AUTH, tags=["Authentication"])
 
