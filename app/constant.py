@@ -1,6 +1,5 @@
 """Constants required by the pet profile and pet registration stories."""
 
-
 class Collections:
     USERS = "users"
     PETS = "pets"

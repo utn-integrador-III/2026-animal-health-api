@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from .... import schemas
 from ....auth import require_roles
-from ....constants import ApiPrefix, Collections, UserRole
+from ....constant import ApiPrefix, Collections, UserRole
 from ....firebase_config import get_firestore_db
 
 router = APIRouter(prefix=ApiPrefix.PETS, tags=["Pet Profiles"])
