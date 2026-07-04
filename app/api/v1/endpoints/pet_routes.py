@@ -5,10 +5,17 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+<<<<<<< Updated upstream
 from .... import schemas
 from ....auth import require_roles
 from ....constant import ApiPrefix, Collections, UserRole
 from ....firebase_config import get_firestore_db
+=======
+from app import schemas
+from app.auth import require_roles
+from app.constants import ApiPrefix, Collections, UserRole
+from app.firebase_config import get_firestore_db
+>>>>>>> Stashed changes
 
 router = APIRouter(prefix=ApiPrefix.PETS, tags=["Pet Profiles"])
 

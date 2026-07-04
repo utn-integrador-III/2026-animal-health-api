@@ -10,19 +10,32 @@ Authentication routes:
 from urllib.parse import quote
 from uuid import uuid4
 
+<<<<<<< Updated upstream
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from .... import schemas
 from ....auth import (
     verify_password,
+=======
+from app import schemas
+from app.auth import (
+    create_access_token,
+    get_current_user,
+>>>>>>> Stashed changes
     password_needs_rehash,
     hash_password,
     create_access_token,
     get_current_user,
 )
+<<<<<<< Updated upstream
 from ....firebase_config import get_firestore_db, get_storage_bucket
 from ....constant import Collections, UserRole, ApiPrefix
 from ....services.registration_service import register_client_with_pet
+=======
+from app.constants import ApiPrefix, Collections, UserRole
+from app.firebase_config import get_firestore_db
+from app.services.registration_service import register_client_with_pet
+>>>>>>> Stashed changes
 
 router = APIRouter(prefix=ApiPrefix.AUTH, tags=["Authentication"])
 

@@ -5,9 +5,15 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from google.api_core.exceptions import AlreadyExists
 
+<<<<<<< Updated upstream
 from .. import schemas
 from ..auth import email_document_id, hash_password
 from ..constant import Collections, UserRole
+=======
+from app import schemas
+from app.auth import email_document_id, hash_password
+from app.constants import Collections, UserRole
+>>>>>>> Stashed changes
 
 
 def register_client_with_pet(
