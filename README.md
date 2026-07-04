@@ -46,12 +46,13 @@ Swagger UI: `http://localhost:8000/docs`
 Veterinarians cannot register publicly:
 
 ```powershell
-python scripts/create_veterinarian.py `
+python app/schemas/create_veterinarian.py `
   --email vet@example.com `
   --password "secure-password" `
   --name "Andrea Vargas" `
   --phone "8888-8888"
 ```
+
 
 ## Tests
 

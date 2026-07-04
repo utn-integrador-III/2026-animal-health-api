@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from app import schemas
 from app.auth import hash_password, verify_password
-from app.constants import Collections, UserRole
+from app.constant import Collections, UserRole
 from app.routes import auth_routes, pet_routes
 from app.services.registration_service import register_client_with_pet
 
