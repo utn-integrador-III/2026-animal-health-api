@@ -11,6 +11,7 @@ from google.oauth2 import service_account
 from .config import FIREBASE_SERVICE_ACCOUNT
 
 _firestore_client = None
+_storage_bucket = None
 
 
 def get_firestore_db():
@@ -53,3 +54,21 @@ def get_firestore_db():
         raise RuntimeError(
             f"Firebase service account is invalid: {service_account_path}"
         ) from exc
+
+
+def get_storage_bucket():
+    """Returns a cached Firebase Storage bucket client if available."""
+    global _storage_bucket
+    if _storage_bucket is not None:
+        return _storage_bucket
+
+    if not firebase_admin._apps:
+        raise RuntimeError("Firebase Admin SDK is not initialized")
+
+    try:
+        from firebase_admin import storage
+
+        _storage_bucket = storage.bucket()
+        return _storage_bucket
+    except Exception as exc:  # pragma: no cover - runtime compatibility fallback
+        raise RuntimeError("Firebase Storage is not available") from exc

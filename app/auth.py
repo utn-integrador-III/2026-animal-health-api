@@ -16,7 +16,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from .config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from .firebase_config import get_firestore_db
-from .constants import Collections, UserRole, AuthToken
+from .constant import Collections, UserRole, AuthToken
 
 # OAuth2 scheme: extracts the Bearer token from the Authorization header
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=AuthToken.LOGIN_URL)

@@ -7,7 +7,7 @@ from google.api_core.exceptions import AlreadyExists
 
 from .. import schemas
 from ..auth import email_document_id, hash_password
-from ..constants import Collections, UserRole
+from ..constant import Collections, UserRole
 
 
 def register_client_with_pet(
