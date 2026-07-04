@@ -7,7 +7,9 @@ class Collections:
 
 class UserRole:
     CLIENT = "client"
-    AUTHENTICATED = (CLIENT,)
+    VETERINARIAN = "veterinarian"
+    ADMIN        = "admin"
+    AUTHENTICATED = (CLIENT, VETERINARIAN)
 
 
 class PetSpecies:
