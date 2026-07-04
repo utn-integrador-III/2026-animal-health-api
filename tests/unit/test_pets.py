@@ -1,14 +1,11 @@
-import pytest
+import unittest
+from unittest.mock import patch
 
-<<<<<<< Updated upstream
-from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app import schemas
-from app.auth import hash_password, verify_password
 from app.constant import Collections, UserRole
-from app.routes import auth_routes, pet_routes
-from app.services.registration_service import register_client_with_pet
+from app.routes import pet_routes
 
 
 class FakeSnapshot:
@@ -87,27 +84,12 @@ class FakeCollection:
         return None, document
 
 
-class FakeBatch:
-    def __init__(self):
-        self.operations = []
-
-    def create(self, reference, data):
-        self.operations.append((reference, dict(data)))
-
-    def commit(self):
-        for reference, data in self.operations:
-            reference.create(data)
-
-
 class FakeFirestore:
     def __init__(self):
         self.collections = {}
 
     def collection(self, name):
         return self.collections.setdefault(name, FakeCollection())
-
-    def batch(self):
-        return FakeBatch()
 
 
 def pet_payload():
@@ -119,52 +101,6 @@ def pet_payload():
         breed_primary="Mixed",
         weight_kg=8.5,
     )
-
-
-def registration_payload():
-    return schemas.UserRegister(
-        email="owner@example.com",
-        password="password123",
-        full_name="Test Owner",
-        phone="8888-8888",
-        initial_pet=pet_payload(),
-    )
-
-
-class RegistrationTests(unittest.TestCase):
-    def test_password_is_hashed_and_verifiable(self):
-        password_hash = hash_password("password123")
-        self.assertTrue(verify_password("password123", password_hash))
-        self.assertFalse(verify_password("incorrect", password_hash))
-
-    def test_registration_links_first_pet_to_owner(self):
-        db = FakeFirestore()
-        user_id, pet_id, _ = register_client_with_pet(db, registration_payload())
-
-        user = db.collection(Collections.USERS).data[user_id]
-        pet = db.collection(Collections.PETS).data[pet_id]
-        self.assertEqual(user["role"], UserRole.CLIENT)
-        self.assertEqual(pet["owner_id"], user_id)
-
-    def test_login_rejects_invalid_password(self):
-        db = FakeFirestore()
-        db.collection(Collections.USERS).data["client-1"] = {
-            "email": "owner@example.com",
-            "hashed_password": hash_password("password123"),
-            "full_name": "Test Owner",
-            "phone": "8888-8888",
-            "role": UserRole.CLIENT,
-            "is_active": True,
-        }
-        with patch.object(auth_routes, "get_firestore_db", return_value=db):
-            with self.assertRaises(HTTPException) as context:
-                auth_routes.login(
-                    schemas.UserLogin(
-                        email="owner@example.com",
-                        password="incorrect",
-                    )
-                )
-        self.assertEqual(context.exception.status_code, 401)
 
 
 class PetProfileTests(unittest.TestCase):
@@ -190,6 +126,7 @@ class PetProfileTests(unittest.TestCase):
 
     def test_create_pet_assigns_authenticated_owner(self):
         db = FakeFirestore()
+
         with patch.object(pet_routes, "get_firestore_db", return_value=db):
             response = pet_routes.create_pet(
                 pet_payload(),
@@ -213,10 +150,3 @@ class PetProfileTests(unittest.TestCase):
                 current_user={"id": "client-1", "role": UserRole.CLIENT},
             )
         self.assertEqual([pet.id for pet in response], ["pet-1"])
-
-
-if __name__ == "__main__":
-    unittest.main()
-=======
-pytestmark = pytest.mark.skip(reason="Legacy combined tests were split into tests/unit and tests/integration")
->>>>>>> Stashed changes

@@ -1,13 +1,12 @@
-import pytest
+import unittest
+from unittest.mock import patch
 
-<<<<<<< Updated upstream
 from fastapi import HTTPException
-from pydantic import ValidationError
 
 from app import schemas
 from app.auth import hash_password, verify_password
 from app.constant import Collections, UserRole
-from app.routes import auth_routes, pet_routes
+from app.routes import auth_routes
 from app.services.registration_service import register_client_with_pet
 
 
@@ -165,58 +164,3 @@ class RegistrationTests(unittest.TestCase):
                     )
                 )
         self.assertEqual(context.exception.status_code, 401)
-
-
-class PetProfileTests(unittest.TestCase):
-    def test_pet_validation_rejects_unsupported_species_and_weight(self):
-        with self.assertRaises(ValidationError):
-            schemas.PetCreate(
-                name="Luna",
-                birth_date="2024-01-01",
-                species="Snake",
-                sex="Female",
-                breed_primary="Mixed",
-                weight_kg=8,
-            )
-        with self.assertRaises(ValidationError):
-            schemas.PetCreate(
-                name="Luna",
-                birth_date="2024-01-01",
-                species="Dog",
-                sex="Female",
-                breed_primary="Mixed",
-                weight_kg=0,
-            )
-
-    def test_create_pet_assigns_authenticated_owner(self):
-        db = FakeFirestore()
-        with patch.object(pet_routes, "get_firestore_db", return_value=db):
-            response = pet_routes.create_pet(
-                pet_payload(),
-                current_user={"id": "client-1", "role": UserRole.CLIENT},
-            )
-        stored = db.collection(Collections.PETS).data[response.id]
-        self.assertEqual(stored["owner_id"], "client-1")
-
-    def test_clients_only_list_their_own_pets(self):
-        db = FakeFirestore()
-        pets = db.collection(Collections.PETS)
-        base = {
-            **pet_payload().model_dump(),
-            "birth_date": "2024-01-01",
-            "created_at": "2026-01-01T00:00:00+00:00",
-        }
-        pets.data["pet-1"] = {**base, "owner_id": "client-1"}
-        pets.data["pet-2"] = {**base, "owner_id": "client-2"}
-        with patch.object(pet_routes, "get_firestore_db", return_value=db):
-            response = pet_routes.list_pets(
-                current_user={"id": "client-1", "role": UserRole.CLIENT},
-            )
-        self.assertEqual([pet.id for pet in response], ["pet-1"])
-
-
-if __name__ == "__main__":
-    unittest.main()
-=======
-pytestmark = pytest.mark.skip(reason="Legacy combined tests were split into tests/unit and tests/integration")
->>>>>>> Stashed changes
