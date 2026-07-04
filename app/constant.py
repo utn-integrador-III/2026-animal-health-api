@@ -3,6 +3,7 @@
 class Collections:
     USERS = "users"
     PETS = "pets"
+    APPOINTMENTS = "appointments"
 
 
 class UserRole:
@@ -37,6 +38,7 @@ class PetSex:
 class ApiPrefix:
     AUTH = "/api/auth"
     PETS = "/api/pets"
+    CLIENTS = "/api/clients"
 
 
 class AuthToken:

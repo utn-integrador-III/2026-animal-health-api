@@ -7,10 +7,10 @@ Client account routes:
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from .. import schemas
-from auth import get_current_user
-from firebase_config import get_firestore_db
-from constant import Collections, UserRole, ApiPrefix
+from .... import schemas
+from ....auth import get_current_user
+from ....firebase_config import get_firestore_db
+from ....constant import Collections, UserRole, ApiPrefix
 
 router = APIRouter(prefix=ApiPrefix.CLIENTS, tags=["Clients"])
 
