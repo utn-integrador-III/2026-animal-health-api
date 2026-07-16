@@ -36,3 +36,8 @@ ALLOWED_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
+
+FIREBASE_STORAGE_BUCKET = os.getenv(
+    "FIREBASE_STORAGE_BUCKET",
+    "animalhealth-fe1e8.firebasestorage.app",
+)

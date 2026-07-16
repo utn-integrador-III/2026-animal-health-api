@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import ALLOWED_ORIGINS
-from .api.v1.endpoints import auth_routes, pet_routes
+from .api.v1.endpoints import appointment_routes, auth_routes, pet_routes
 
 app = FastAPI(
     title="Animal Health Pet Profiles API",
@@ -27,6 +27,10 @@ app.include_router(auth_routes.router)
 # ─── Pets (CRUD + history) ───────────────────────────────────────────────────
 # POST/GET/PUT/DELETE /api/pets, GET /api/pets/{id}/history
 app.include_router(pet_routes.router)
+
+
+# Appointments: schedule, reschedule, cancel, and veterinarian daily lists.
+app.include_router(appointment_routes.router)
 
 @app.get("/")
 def root():
