@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app import schemas
@@ -92,6 +93,39 @@ class FakeFirestore:
         return self.collections.setdefault(name, FakeCollection())
 
 
+class FakeUploadFile:
+    def __init__(self, content, content_type="image/png"):
+        self.content = content
+        self.content_type = content_type
+
+    async def read(self, size=-1):
+        return self.content[:size] if size and size > 0 else self.content
+
+
+class FakeBlob:
+    def __init__(self, name):
+        self.name = name
+        self.metadata = {}
+        self.content = None
+        self.content_type = None
+
+    def upload_from_string(self, content, content_type=None):
+        self.content = content
+        self.content_type = content_type
+
+
+class FakeBucket:
+    name = "animalhealth-fe1e8.firebasestorage.app"
+
+    def __init__(self):
+        self.blobs = {}
+
+    def blob(self, name):
+        blob = FakeBlob(name)
+        self.blobs[name] = blob
+        return blob
+
+
 def pet_payload():
     return schemas.PetCreate(
         name="Luna",
@@ -150,3 +184,47 @@ class PetProfileTests(unittest.TestCase):
                 current_user={"id": "client-1", "role": UserRole.CLIENT},
             )
         self.assertEqual([pet.id for pet in response], ["pet-1"])
+
+    def test_upload_pet_photo_rejects_unsupported_type(self):
+        with self.assertRaises(HTTPException) as context:
+            import asyncio
+
+            asyncio.run(
+                pet_routes.upload_pet_photo(
+                    "pet-1",
+                    FakeUploadFile(b"image", content_type="image/gif"),
+                    current_user={"id": "client-1", "role": UserRole.CLIENT},
+                )
+            )
+        self.assertEqual(context.exception.status_code, 415)
+
+    def test_upload_pet_photo_updates_pet_photo_url(self):
+        import asyncio
+
+        db = FakeFirestore()
+        pet_data = {
+            **pet_payload().model_dump(),
+            "birth_date": "2024-01-01",
+            "owner_id": "client-1",
+            "created_at": "2026-01-01T00:00:00+00:00",
+        }
+        db.collection(Collections.PETS).data["pet-1"] = pet_data
+        bucket = FakeBucket()
+
+        with (
+            patch.object(pet_routes, "get_firestore_db", return_value=db),
+            patch.object(pet_routes, "get_storage_bucket", return_value=bucket),
+        ):
+            response = asyncio.run(
+                pet_routes.upload_pet_photo(
+                    "pet-1",
+                    FakeUploadFile(b"image-bytes", content_type="image/png"),
+                    current_user={"id": "client-1", "role": UserRole.CLIENT},
+                )
+            )
+
+        self.assertIn("firebasestorage.googleapis.com", response.photo_url)
+        self.assertEqual(
+            db.collection(Collections.PETS).data["pet-1"]["photo_url"],
+            response.photo_url,
+        )

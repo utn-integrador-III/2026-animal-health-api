@@ -39,6 +39,7 @@ class ApiPrefix:
     AUTH = "/api/auth"
     PETS = "/api/pets"
     CLIENTS = "/api/clients"
+    APPOINTMENTS = "/api/appointments"
 
 
 class AuthToken:

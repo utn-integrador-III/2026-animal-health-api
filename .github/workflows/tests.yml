@@ -5,10 +5,12 @@ on:
     branches:
       - dev
       - qa
+      - main
   pull_request:
     branches:
       - dev
       - qa
+      - main
 
 jobs:
   unit-tests:

@@ -1,6 +1,6 @@
 ﻿"""Schemas required by DB-US-02 and FE-US-02."""
 
-from datetime import date
+from datetime import date, time
 import re
 from typing import List, Optional
 
@@ -109,6 +109,7 @@ class PetResponse(BaseModel):
     weight_kg: float
     owner_id: str
     created_at: str
+    photo_url: Optional[str] = None
 
 
 class UserRegister(BaseModel):
@@ -186,6 +187,18 @@ class UserProfileUpdate(BaseModel):
         return value
 
 
+class UserPasswordUpdate(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+    confirm_password: str = Field(min_length=8, max_length=128)
+
+    @model_validator(mode="after")
+    def validate_password_confirmation(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("New password and confirmation do not match")
+        return self
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -242,4 +255,119 @@ class ContactMessageResponse(BaseModel):
     
 class RegistrationResponse(TokenResponse):
     pet: PetResponse
+
+
+class AppointmentStatus:
+    SCHEDULED = "scheduled"
+    CANCELLED = "cancelled"
+    COMPLETED = "completed"
+
+
+class AppointmentCreate(BaseModel):
+    pet_id: str = Field(min_length=1)
+    appointment_date: date
+    appointment_time: time
+    duration_blocks: int = Field(default=1, ge=1, le=4)
+    reason: str = Field(min_length=3, max_length=300)
+    veterinarian_id: str = Field(min_length=1)
+
+    @field_validator("appointment_date")
+    @classmethod
+    def validate_appointment_date(cls, value: date) -> date:
+        if value < date.today():
+            raise ValueError("Appointment date cannot be in the past")
+        return value
+
+    @field_validator("reason")
+    @classmethod
+    def strip_reason(cls, value: str) -> str:
+        return value.strip()
+
+
+class AppointmentFollowUpCreate(BaseModel):
+    pet_id: str = Field(min_length=1)
+    appointment_date: date
+    appointment_time: time
+    duration_blocks: int = Field(default=1, ge=1, le=4)
+    reason: str = Field(min_length=3, max_length=300)
+
+    @field_validator("appointment_date")
+    @classmethod
+    def validate_appointment_date(cls, value: date) -> date:
+        if value < date.today():
+            raise ValueError("Appointment date cannot be in the past")
+        return value
+
+    @field_validator("reason")
+    @classmethod
+    def strip_reason(cls, value: str) -> str:
+        return value.strip()
+
+
+class AppointmentUpdate(BaseModel):
+    appointment_date: Optional[date] = None
+    appointment_time: Optional[time] = None
+    duration_blocks: Optional[int] = Field(default=None, ge=1, le=4)
+    reason: Optional[str] = Field(default=None, min_length=3, max_length=300)
+    veterinarian_id: Optional[str] = Field(default=None, min_length=1)
+
+    @field_validator("appointment_date")
+    @classmethod
+    def validate_appointment_date(cls, value: Optional[date]) -> Optional[date]:
+        if value is not None and value < date.today():
+            raise ValueError("Appointment date cannot be in the past")
+        return value
+
+    @field_validator("reason")
+    @classmethod
+    def strip_reason(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip() if value else value
+
+
+class AppointmentComplete(BaseModel):
+    clinical_observation: Optional[str] = Field(default=None, max_length=1000)
+
+    @field_validator("clinical_observation")
+    @classmethod
+    def strip_clinical_observation(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip() if value else value
+
+
+class AppointmentResponse(BaseModel):
+    id: str
+    pet_id: str
+    pet_name: str
+    pet_species: str
+    pet_sex: Optional[str] = None
+    pet_birth_date: Optional[date] = None
+    pet_weight_kg: Optional[float] = None
+    owner_id: str
+    owner_name: Optional[str] = None
+    pet_breed: Optional[str] = None
+    pet_photo_url: Optional[str] = None
+    last_visit: Optional[str] = "--"
+    appointment_date: date
+    appointment_time: time
+    duration_blocks: int = 1
+    reason: str
+    veterinarian_id: str
+    veterinarian_name: str
+    status: str
+    created_at: str
+    updated_at: Optional[str] = None
+    cancelled_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    clinical_observation: Optional[str] = None
+
+
+class VeterinarianOption(BaseModel):
+    id: str
+    full_name: str
+    email: str
+
+
+class AvailableSlotsResponse(BaseModel):
+    date: date
+    veterinarian_id: str
+    slots: List[str]
 
