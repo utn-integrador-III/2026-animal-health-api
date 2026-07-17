@@ -1,4 +1,4 @@
-﻿"""Schemas required by DB-US-02 and FE-US-02."""
+"""Schemas required by DB-US-02 and FE-US-02."""
 
 from datetime import date, time
 import re
@@ -371,3 +371,47 @@ class AvailableSlotsResponse(BaseModel):
     veterinarian_id: str
     slots: List[str]
 
+
+class VaccineCreate(BaseModel):
+    """Payload sent by the vet when applying a vaccine to a pet."""
+
+    name: str = Field(min_length=1, max_length=120)
+    type: str = Field(min_length=1, max_length=200)           # disease it prevents
+    brand: str = Field(min_length=1, max_length=120)
+    batch_number: Optional[str] = Field(default=None, max_length=80)
+    scheduled_date: date                                       # application date
+    expiration_date: Optional[date] = None
+    next_dose: Optional[date] = None
+    administration_route: str = Field(default="Subcutánea", max_length=80)
+    dose: str = Field(default="1", max_length=20)
+    unit: str = Field(default="dosis", max_length=30)
+    raw_status: str = Field(default="Aplicada correctamente", max_length=80)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+    @field_validator("name", "type", "brand", "administration_route")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class VaccineResponse(BaseModel):
+    """Full vaccine record returned from Firestore."""
+
+    id: str
+    pet_id: str
+    name: str
+    type: str
+    brand: str
+    batch_number: Optional[str] = None
+    scheduled_date: str
+    expiration_date: Optional[str] = None
+    next_dose: Optional[str] = None
+    administration_route: str
+    dose: str
+    unit: str
+    raw_status: str
+    status: str                        # "completed" | "upcoming"
+    notes: Optional[str] = None
+    veterinarian_id: str
+    veterinarian_name: str
+    created_at: str

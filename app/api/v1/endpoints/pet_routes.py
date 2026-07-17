@@ -22,6 +22,52 @@ PET_IMAGE_TYPES = {
 MAX_PET_IMAGE_BYTES = 5 * 1024 * 1024
 
 
+# ─── Helpers ─────────────────────────────────────────────────────────────────
+
+def _owned_pet(db, pet_id: str, owner_id: str):
+    """Ensures a pet exists and belongs to the requesting client."""
+    reference = db.collection(Collections.PETS).document(pet_id)
+    snapshot = reference.get()
+    if not snapshot.exists or snapshot.to_dict().get("owner_id") != owner_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pet not found",
+        )
+    return reference, snapshot
+
+
+def _assigned_pet(db, pet_id: str, veterinarian_id: str):
+    """Ensures a pet exists and the requesting veterinarian has been assigned
+    to at least one appointment for that pet."""
+    reference = db.collection(Collections.PETS).document(pet_id)
+    snapshot = reference.get()
+    if not snapshot.exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pet not found",
+        )
+
+    assignments = (
+        db.collection(Collections.APPOINTMENTS)
+        .where("pet_id", "==", pet_id)
+        .where("veterinarian_id", "==", veterinarian_id)
+        .limit(1)
+        .get()
+    )
+    if len(assignments) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Veterinarian is not assigned to this pet",
+        )
+    return reference, snapshot
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+# ─── Pet CRUD ────────────────────────────────────────────────────────────────
+
 @router.post("", response_model=schemas.PetResponse, status_code=201)
 def create_pet(
     pet_data: schemas.PetCreate,
@@ -68,10 +114,13 @@ def _owned_pet(db, pet_id: str, owner_id: str):
 @router.get("/{pet_id}", response_model=schemas.PetResponse)
 def get_pet(
     pet_id: str,
-    current_user: dict = Depends(require_roles(UserRole.CLIENT)),
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
 ):
     db = get_firestore_db()
-    _, snapshot = _owned_pet(db, pet_id, current_user["id"])
+    if current_user["role"] == UserRole.CLIENT:
+        _, snapshot = _owned_pet(db, pet_id, current_user["id"])
+    else:
+        _, snapshot = _assigned_pet(db, pet_id, current_user["id"])
     return schemas.PetResponse(id=snapshot.id, **snapshot.to_dict())
 
 
@@ -79,10 +128,13 @@ def get_pet(
 def update_pet(
     pet_id: str,
     pet_data: schemas.PetUpdate,
-    current_user: dict = Depends(require_roles(UserRole.CLIENT)),
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
 ):
     db = get_firestore_db()
-    reference, _ = _owned_pet(db, pet_id, current_user["id"])
+    if current_user["role"] == UserRole.CLIENT:
+        reference, _ = _owned_pet(db, pet_id, current_user["id"])
+    else:
+        reference, _ = _assigned_pet(db, pet_id, current_user["id"])
     update_data = pet_data.model_dump(exclude_unset=True)
     if "birth_date" in update_data:
         update_data["birth_date"] = update_data["birth_date"].isoformat()
@@ -152,3 +204,80 @@ def delete_pet(
     db = get_firestore_db()
     reference, _ = _owned_pet(db, pet_id, current_user["id"])
     reference.delete()
+
+
+# ─── Vaccine Endpoints ────────────────────────────────────────────────────────
+
+def _raw_status_to_status(raw_status: str) -> str:
+    """Maps the vet-facing raw_status label to the client-facing status value."""
+    completed_statuses = {"Aplicada correctamente", "Esquema completo", "completed"}
+    return "completed" if raw_status in completed_statuses else "upcoming"
+
+
+@router.get("/{pet_id}/vaccines", response_model=List[schemas.VaccineResponse])
+def list_vaccines(
+    pet_id: str,
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
+):
+    """Returns the full vaccination history for a pet.
+
+    - Clients: can only read their own pet's vaccines.
+    - Veterinarians: can only read vaccines for pets they are assigned to.
+    """
+    db = get_firestore_db()
+    if current_user["role"] == UserRole.CLIENT:
+        _owned_pet(db, pet_id, current_user["id"])
+    else:
+        _assigned_pet(db, pet_id, current_user["id"])
+
+    snapshots = (
+        db.collection(Collections.VACCINES)
+        .where("pet_id", "==", pet_id)
+        .get()
+    )
+    return [
+        schemas.VaccineResponse(id=snapshot.id, **snapshot.to_dict())
+        for snapshot in snapshots
+    ]
+
+
+@router.post(
+    "/{pet_id}/vaccines",
+    response_model=schemas.VaccineResponse,
+    status_code=201,
+)
+def create_vaccine(
+    pet_id: str,
+    vaccine_data: schemas.VaccineCreate,
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN)),
+):
+    """Records a vaccine applied by the authenticated veterinarian.
+
+    Only veterinarians that have at least one appointment for the pet are allowed.
+    """
+    db = get_firestore_db()
+    _assigned_pet(db, pet_id, current_user["id"])
+
+    document = {
+        "pet_id": pet_id,
+        "name": vaccine_data.name,
+        "type": vaccine_data.type,
+        "brand": vaccine_data.brand,
+        "batch_number": vaccine_data.batch_number,
+        "scheduled_date": vaccine_data.scheduled_date.isoformat(),
+        "expiration_date": vaccine_data.expiration_date.isoformat()
+            if vaccine_data.expiration_date else None,
+        "next_dose": vaccine_data.next_dose.isoformat()
+            if vaccine_data.next_dose else None,
+        "administration_route": vaccine_data.administration_route,
+        "dose": vaccine_data.dose,
+        "unit": vaccine_data.unit,
+        "raw_status": vaccine_data.raw_status,
+        "status": _raw_status_to_status(vaccine_data.raw_status),
+        "notes": vaccine_data.notes,
+        "veterinarian_id": current_user["id"],
+        "veterinarian_name": current_user.get("full_name", "Veterinarian"),
+        "created_at": _now(),
+    }
+    reference = db.collection(Collections.VACCINES).add(document)
+    return schemas.VaccineResponse(id=reference[1].id, **document)
