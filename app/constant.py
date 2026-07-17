@@ -4,6 +4,7 @@ class Collections:
     USERS = "users"
     PETS = "pets"
     APPOINTMENTS = "appointments"
+    VACCINES = "vaccines"
 
 
 class UserRole:
