@@ -1,6 +1,6 @@
 """CRUD endpoints for pet profiles owned by the authenticated client."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import List
 from urllib.parse import quote
 from uuid import uuid4
@@ -281,3 +281,224 @@ def create_vaccine(
     }
     reference = db.collection(Collections.VACCINES).add(document)
     return schemas.VaccineResponse(id=reference[1].id, **document)
+
+
+# ─── Clinical Records Endpoints ──────────────────────────────────────────────
+
+@router.get("/{pet_id}/clinical-records", response_model=List[schemas.ClinicalRecordResponse])
+def list_clinical_records(
+    pet_id: str,
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
+):
+    """Returns the clinical medical history for a pet.
+
+    - Clients: can only read their own pet's history.
+    - Veterinarians: can only read history for pets they are assigned to.
+    """
+    db = get_firestore_db()
+    if current_user["role"] == UserRole.CLIENT:
+        _owned_pet(db, pet_id, current_user["id"])
+    else:
+        _assigned_pet(db, pet_id, current_user["id"])
+
+    snapshots = (
+        db.collection(Collections.MEDICAL_RECORDS)
+        .where("pet_id", "==", pet_id)
+        .get()
+    )
+    records = []
+    for snapshot in snapshots:
+        data = snapshot.to_dict()
+        records.append(schemas.ClinicalRecordResponse(id=snapshot.id, **data))
+    
+    records.sort(key=lambda x: x.date, reverse=True)
+    return records
+
+
+@router.post(
+    "/{pet_id}/clinical-records",
+    response_model=schemas.ClinicalRecordResponse,
+    status_code=201,
+)
+def create_clinical_record(
+    pet_id: str,
+    record_data: schemas.ClinicalRecordCreate,
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN)),
+):
+    """Records a clinical medical record (diagnosis, treatment, observations) for a pet.
+
+    Only veterinarians that have at least one appointment for the pet are allowed.
+    """
+    db = get_firestore_db()
+    _assigned_pet(db, pet_id, current_user["id"])
+
+    document = {
+        "pet_id": pet_id,
+        "diagnosis": record_data.diagnosis,
+        "treatment": record_data.treatment,
+        "weight_kg": record_data.weight_kg,
+        "notes": record_data.notes,
+        "date": record_data.date.isoformat(),
+        "veterinarian_id": current_user["id"],
+        "veterinarian_name": current_user.get("full_name", "Veterinarian"),
+        "created_at": _now(),
+    }
+    reference = db.collection(Collections.MEDICAL_RECORDS).add(document)
+    return schemas.ClinicalRecordResponse(id=reference[1].id, **document)
+
+
+# ─── Medications Endpoints ───────────────────────────────────────────────────
+
+@router.get("/{pet_id}/medications", response_model=List[schemas.MedicationResponse])
+def list_medications(
+    pet_id: str,
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
+):
+    """Returns the medication list (active treatments and history) for a pet.
+
+    - Clients: can only read their own pet's medications.
+    - Veterinarians: can only read medications for pets they are assigned to.
+    """
+    db = get_firestore_db()
+    if current_user["role"] == UserRole.CLIENT:
+        _owned_pet(db, pet_id, current_user["id"])
+    else:
+        _assigned_pet(db, pet_id, current_user["id"])
+
+    snapshots = (
+        db.collection(Collections.MEDICATIONS)
+        .where("pet_id", "==", pet_id)
+        .get()
+    )
+    
+    medications = []
+    today_str = date.today().isoformat()
+    
+    for snapshot in snapshots:
+        data = snapshot.to_dict()
+        end_date_str = data.get("end_date")
+        computed_status = "active"
+        if end_date_str and end_date_str < today_str:
+            computed_status = "completed"
+            
+        data["status"] = data.get("status", computed_status)
+        medications.append(schemas.MedicationResponse(id=snapshot.id, **data))
+        
+    medications.sort(key=lambda x: (x.status != "active", x.end_date), reverse=True)
+    return medications
+
+
+@router.post(
+    "/{pet_id}/medications",
+    response_model=schemas.MedicationResponse,
+    status_code=201,
+)
+def create_medication(
+    pet_id: str,
+    medication_data: schemas.MedicationCreate,
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN)),
+):
+    """Prescribes a new medication treatment for a pet.
+
+    Only veterinarians that have at least one appointment for the pet are allowed.
+    """
+    db = get_firestore_db()
+    _assigned_pet(db, pet_id, current_user["id"])
+
+    today_str = date.today().isoformat()
+    end_date_str = medication_data.end_date.isoformat()
+    computed_status = "active"
+    if end_date_str < today_str:
+        computed_status = "completed"
+
+    document = {
+        "pet_id": pet_id,
+        "name": medication_data.name,
+        "dosage": medication_data.dosage,
+        "frequency": medication_data.frequency,
+        "start_date": medication_data.start_date.isoformat(),
+        "end_date": end_date_str,
+        "notes": medication_data.notes,
+        "status": computed_status,
+        "checked_dates": [],
+        "veterinarian_id": current_user["id"],
+        "veterinarian_name": current_user.get("full_name", "Veterinarian"),
+        "created_at": _now(),
+    }
+    reference = db.collection(Collections.MEDICATIONS).add(document)
+    return schemas.MedicationResponse(id=reference[1].id, **document)
+
+
+@router.post(
+    "/{pet_id}/medications/{medication_id}/toggle-check",
+    response_model=schemas.MedicationResponse,
+)
+def toggle_medication_check(
+    pet_id: str,
+    medication_id: str,
+    toggle_data: schemas.MedicationCheckToggle,
+    current_user: dict = Depends(require_roles(UserRole.CLIENT)),
+):
+    """Toggles (adds/removes) a specific date in the medication's checked_dates list.
+
+    Only the pet owner client is allowed to check off medication logs.
+    """
+    db = get_firestore_db()
+    _owned_pet(db, pet_id, current_user["id"])
+
+    reference = db.collection(Collections.MEDICATIONS).document(medication_id)
+    snapshot = reference.get()
+    if not snapshot.exists or snapshot.to_dict().get("pet_id") != pet_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Medication not found",
+        )
+
+    data = snapshot.to_dict()
+    checked_dates = data.get("checked_dates", [])
+    date_str = toggle_data.date.isoformat()
+
+    if date_str in checked_dates:
+        checked_dates.remove(date_str)
+    else:
+        checked_dates.append(date_str)
+
+    reference.update({"checked_dates": checked_dates})
+    updated = reference.get()
+    
+    updated_data = updated.to_dict()
+    today_str = date.today().isoformat()
+    end_date_str = updated_data.get("end_date")
+    computed_status = "active"
+    if end_date_str and end_date_str < today_str:
+        computed_status = "completed"
+    updated_data["status"] = updated_data.get("status", computed_status)
+
+    return schemas.MedicationResponse(id=updated.id, **updated_data)
+
+
+@router.delete("/{pet_id}/medications/{medication_id}", status_code=204)
+def delete_medication(
+    pet_id: str,
+    medication_id: str,
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN)),
+):
+    """Deletes a prescribed medication for a pet.
+
+    Only veterinarians assigned to the pet are allowed to delete a medication.
+    """
+    db = get_firestore_db()
+    _assigned_pet(db, pet_id, current_user["id"])
+
+    reference = db.collection(Collections.MEDICATIONS).document(medication_id)
+    snapshot = reference.get()
+    if not snapshot.exists or snapshot.to_dict().get("pet_id") != pet_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Medication not found",
+        )
+
+    reference.delete()
+    return None
+
+
