@@ -415,3 +415,64 @@ class VaccineResponse(BaseModel):
     veterinarian_id: str
     veterinarian_name: str
     created_at: str
+
+
+class ClinicalRecordCreate(BaseModel):
+    diagnosis: str = Field(min_length=2, max_length=300)
+    treatment: str = Field(min_length=2, max_length=500)
+    weight_kg: Optional[float] = Field(default=None, gt=0, le=999)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    date: date
+
+    @field_validator("diagnosis", "treatment")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class ClinicalRecordResponse(BaseModel):
+    id: str
+    pet_id: str
+    veterinarian_id: str
+    veterinarian_name: str
+    diagnosis: str
+    treatment: str
+    weight_kg: Optional[float] = None
+    notes: Optional[str] = None
+    date: str
+    created_at: str
+
+
+class MedicationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=150)
+    dosage: str = Field(min_length=1, max_length=100)
+    frequency: str = Field(min_length=1, max_length=100)
+    start_date: date
+    end_date: date
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+    @field_validator("name", "dosage", "frequency")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class MedicationResponse(BaseModel):
+    id: str
+    pet_id: str
+    veterinarian_id: str
+    veterinarian_name: str
+    name: str
+    dosage: str
+    frequency: str
+    start_date: str
+    end_date: str
+    notes: Optional[str] = None
+    status: str  # "active" | "completed"
+    checked_dates: List[str] = []
+    created_at: str
+
+
+class MedicationCheckToggle(BaseModel):
+    date: date
+

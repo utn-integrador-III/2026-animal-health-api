@@ -5,6 +5,8 @@ class Collections:
     PETS = "pets"
     APPOINTMENTS = "appointments"
     VACCINES = "vaccines"
+    MEDICAL_RECORDS = "medical_records"
+    MEDICATIONS = "medications"
 
 
 class UserRole:
