@@ -117,7 +117,6 @@ BASE_APPOINTMENT = {
     "status": "scheduled",
 }
 
-# ─── ACTUALIZADO: Agregar campos faltantes para notificaciones ──────────────
 VACCINE_CREATE_PAYLOAD = schemas.VaccineCreate(
     name="Parvovirus",
     type="Parvovirosis Canina",
@@ -129,8 +128,6 @@ VACCINE_CREATE_PAYLOAD = schemas.VaccineCreate(
     unit="ml",
     raw_status="Aplicada correctamente",
     notes="Sin reacciones adversas",
-    expiration_date="2027-07-15",      # ← AGREGAR
-    notification_sent=False,           # ← AGREGAR
 )
 
 VET_USER = {"id": "vet-1", "role": UserRole.VETERINARIAN, "full_name": "Dr. Smith"}
@@ -159,7 +156,7 @@ class VaccineEndpointTests(unittest.TestCase):
             "brand": "Merial",
             "batch_number": None,
             "scheduled_date": "2026-07-10",
-            "expiration_date": "2027-07-10",      # ← CAMBIAR
+            "expiration_date": None,
             "next_dose": None,
             "administration_route": "Subcutánea",
             "dose": "1",
@@ -170,7 +167,6 @@ class VaccineEndpointTests(unittest.TestCase):
             "veterinarian_id": "vet-1",
             "veterinarian_name": "Dr. Smith",
             "created_at": "2026-07-10T12:00:00+00:00",
-            "notification_sent": False,           # ← AGREGAR
         }
         with patch.object(pet_routes, "get_firestore_db", return_value=db):
             result = pet_routes.list_vaccines("pet-1", current_user=CLIENT_USER)
@@ -225,9 +221,6 @@ class VaccineEndpointTests(unittest.TestCase):
         self.assertEqual(stored["name"], "Parvovirus")
         self.assertEqual(stored["brand"], "Nobivac")
         self.assertEqual(stored["batch_number"], "LOTE-2309X")
-        # Verificar que los nuevos campos se guardaron
-        self.assertEqual(stored["expiration_date"], "2027-07-15")
-        self.assertEqual(stored["notification_sent"], False)
 
     # POST /api/pets/{pet_id}/vaccines — vet not assigned is forbidden
     def test_create_vaccine_vet_not_assigned_forbidden(self):
@@ -252,8 +245,6 @@ class VaccineEndpointTests(unittest.TestCase):
             brand="Zoetis",
             scheduled_date="2026-07-15",
             raw_status="Refuerzo pendiente",
-            expiration_date="2027-07-15",      # ← AGREGAR
-            notification_sent=False,           # ← AGREGAR
         )
         with patch.object(pet_routes, "get_firestore_db", return_value=db):
             result = pet_routes.create_vaccine(
@@ -268,8 +259,6 @@ class VaccineEndpointTests(unittest.TestCase):
             type="Rabia",
             brand="Merial",
             scheduled_date="2099-01-01",
-            expiration_date="2100-01-01",      # ← AGREGAR
-            notification_sent=False,           # ← AGREGAR
         )
         self.assertEqual(v.scheduled_date.isoformat(), "2099-01-01")
 
