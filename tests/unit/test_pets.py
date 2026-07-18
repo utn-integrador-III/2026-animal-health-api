@@ -6,14 +6,8 @@ from pydantic import ValidationError
 
 from app import schemas
 from app.constant import Collections, UserRole
-from app.api.v1.endpoints.pet_routes import (
-    create_pet,
-    list_pets,
-    upload_pet_photo,
-)
+from app.routes import pet_routes
 
-
-# ─── Fake Firestore Infrastructure ────────────────────────────────
 
 class FakeSnapshot:
     def __init__(self, document_id, data=None):
@@ -140,12 +134,8 @@ def pet_payload():
         sex="Female",
         breed_primary="Mixed",
         weight_kg=8.5,
-        owner_id="client-1",
-        owner_name="Client Test",
     )
 
-
-# ─── Tests ────────────────────────────────────────────────────────
 
 class PetProfileTests(unittest.TestCase):
     def test_pet_validation_rejects_unsupported_species_and_weight(self):
@@ -171,8 +161,8 @@ class PetProfileTests(unittest.TestCase):
     def test_create_pet_assigns_authenticated_owner(self):
         db = FakeFirestore()
 
-        with patch('app.api.v1.endpoints.pet_routes.get_firestore_db', return_value=db):
-            response = create_pet(
+        with patch.object(pet_routes, "get_firestore_db", return_value=db):
+            response = pet_routes.create_pet(
                 pet_payload(),
                 current_user={"id": "client-1", "role": UserRole.CLIENT},
             )
@@ -189,9 +179,8 @@ class PetProfileTests(unittest.TestCase):
         }
         pets.data["pet-1"] = {**base, "owner_id": "client-1"}
         pets.data["pet-2"] = {**base, "owner_id": "client-2"}
-
-        with patch('app.api.v1.endpoints.pet_routes.get_firestore_db', return_value=db):
-            response = list_pets(
+        with patch.object(pet_routes, "get_firestore_db", return_value=db):
+            response = pet_routes.list_pets(
                 current_user={"id": "client-1", "role": UserRole.CLIENT},
             )
         self.assertEqual([pet.id for pet in response], ["pet-1"])
@@ -201,7 +190,7 @@ class PetProfileTests(unittest.TestCase):
             import asyncio
 
             asyncio.run(
-                upload_pet_photo(
+                pet_routes.upload_pet_photo(
                     "pet-1",
                     FakeUploadFile(b"image", content_type="image/gif"),
                     current_user={"id": "client-1", "role": UserRole.CLIENT},
@@ -223,11 +212,11 @@ class PetProfileTests(unittest.TestCase):
         bucket = FakeBucket()
 
         with (
-            patch('app.api.v1.endpoints.pet_routes.get_firestore_db', return_value=db),
-            patch('app.api.v1.endpoints.pet_routes.get_storage_bucket', return_value=bucket),
+            patch.object(pet_routes, "get_firestore_db", return_value=db),
+            patch.object(pet_routes, "get_storage_bucket", return_value=bucket),
         ):
             response = asyncio.run(
-                upload_pet_photo(
+                pet_routes.upload_pet_photo(
                     "pet-1",
                     FakeUploadFile(b"image-bytes", content_type="image/png"),
                     current_user={"id": "client-1", "role": UserRole.CLIENT},
@@ -239,7 +228,3 @@ class PetProfileTests(unittest.TestCase):
             db.collection(Collections.PETS).data["pet-1"]["photo_url"],
             response.photo_url,
         )
-
-
-if __name__ == "__main__":
-    unittest.main()
