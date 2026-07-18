@@ -36,7 +36,7 @@ pip install -r requirements-dev.txt
 ## Run
 
 ```powershell
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8000  
 ```
 
 Swagger UI: `http://localhost:8000/docs`
