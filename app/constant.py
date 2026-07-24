@@ -7,6 +7,8 @@ class Collections:
     VACCINES = "vaccines"
     MEDICAL_RECORDS = "medical_records"
     MEDICATIONS = "medications"
+    NOTIFICATIONS = "notifications"
+    LAB_RESULTS = "lab_results"  # ← NUEVO
 
 
 class UserRole:
@@ -43,6 +45,8 @@ class ApiPrefix:
     PETS = "/api/pets"
     CLIENTS = "/api/clients"
     APPOINTMENTS = "/api/appointments"
+    NOTIFICATIONS = "/api/notifications"
+    LAB_RESULTS = "/api/lab-results"  # ← NUEVO
 
 
 class AuthToken:
