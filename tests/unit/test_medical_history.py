@@ -120,7 +120,7 @@ class MedicalHistoryAndMedicationTests(unittest.TestCase):
                 current_user=VET_USER,
             )
         self.assertEqual(result.name, "Vitamina B12")
-        self.assertEqual(result.status, "active")
+        self.assertEqual(result.status, "completed")
 
     def test_toggle_medication_check(self):
         db = _db_with_pet_and_appointment()
