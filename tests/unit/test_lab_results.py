@@ -12,8 +12,12 @@ class TestLabResultService(unittest.TestCase):
 
     def setUp(self):
         """Configuración inicial para cada prueba."""
-        self.service = LabResultService()
+        patcher = patch('app.services.lab_result_service.get_firestore_db')
+        self.mock_get_db = patcher.start()
+        self.addCleanup(patcher.stop)
         self.mock_db = MagicMock()
+        self.mock_get_db.return_value = self.mock_db
+        self.service = LabResultService()
 
     @patch('app.services.lab_result_service.get_firestore_db')
     def test_create_lab_result_success(self, mock_get_db):

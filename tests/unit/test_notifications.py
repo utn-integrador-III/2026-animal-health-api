@@ -12,8 +12,12 @@ class TestNotificationService(unittest.TestCase):
 
     def setUp(self):
         """Configuración inicial para cada prueba."""
-        self.service = NotificationService()
+        patcher = patch('app.services.notification_service.get_firestore_db')
+        self.mock_get_db = patcher.start()
+        self.addCleanup(patcher.stop)
         self.mock_db = MagicMock()
+        self.mock_get_db.return_value = self.mock_db
+        self.service = NotificationService()
 
     @patch('app.services.notification_service.get_firestore_db')
     def test_check_vaccines_due_for_notification_no_vaccines(self, mock_get_db):
