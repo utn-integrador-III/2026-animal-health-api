@@ -1,4 +1,4 @@
-import unittest
+﻿import unittest
 from unittest.mock import patch
 
 from fastapi import HTTPException
@@ -132,3 +132,4 @@ class AppointmentTests(unittest.TestCase):
                 )
 
         self.assertEqual(context.exception.status_code, 409)
+

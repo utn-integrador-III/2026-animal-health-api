@@ -4,6 +4,11 @@ import os
 import warnings
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BASE_DIR / ".env")
+
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
 
@@ -25,7 +30,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
 
 FIREBASE_SERVICE_ACCOUNT = os.getenv(
     "FIREBASE_SERVICE_ACCOUNT",
-    str(Path(__file__).resolve().parents[1] / "serviceAccountKey.json"),
+    str(BASE_DIR / "serviceAccountKey.json"),
 )
 
 ALLOWED_ORIGINS = [
@@ -41,3 +46,8 @@ FIREBASE_STORAGE_BUCKET = os.getenv(
     "FIREBASE_STORAGE_BUCKET",
     "animalhealth-fe1e8.firebasestorage.app",
 )
+
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+BREVO_FROM_EMAIL = os.getenv("BREVO_FROM_EMAIL", "")
+BREVO_FROM_NAME = os.getenv("BREVO_FROM_NAME", "Animal Health")
+CONTACT_RECEIVER_EMAIL = os.getenv("CONTACT_RECEIVER_EMAIL", "ediloma21@gmail.com")

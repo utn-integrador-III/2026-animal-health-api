@@ -1,4 +1,4 @@
-"""Constants required by the pet profile and pet registration stories."""
+﻿"""Constants required by the pet profile and pet registration stories."""
 
 class Collections:
     USERS = "users"
@@ -7,12 +7,14 @@ class Collections:
     VACCINES = "vaccines"
     MEDICAL_RECORDS = "medical_records"
     MEDICATIONS = "medications"
+    CONSULTATIONS = "consultations"
+    DIAGNOSES = "diagnoses"
 
 
 class UserRole:
     CLIENT = "client"
     VETERINARIAN = "veterinarian"
-    ADMIN        = "admin"
+    ADMIN = "admin"
     AUTHENTICATED = (CLIENT, VETERINARIAN)
 
 
@@ -43,6 +45,8 @@ class ApiPrefix:
     PETS = "/api/pets"
     CLIENTS = "/api/clients"
     APPOINTMENTS = "/api/appointments"
+    CONTACT = "/api/contact"
+    CONSULTATIONS = "/api/consultations"
 
 
 class AuthToken:
