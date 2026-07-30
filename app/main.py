@@ -18,13 +18,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# â”€â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # POST /api/auth/register, POST /api/auth/login,
 # POST /api/auth/logout, GET /api/auth/profile, PUT /api/auth/profile
 app.include_router(auth_routes.router)
 
-
-# â”€â”€â”€ Pets (CRUD + history) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # POST/GET/PUT/DELETE /api/pets, GET /api/pets/{id}/history
 app.include_router(pet_routes.router)
 

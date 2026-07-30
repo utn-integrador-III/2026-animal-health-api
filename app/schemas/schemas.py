@@ -160,7 +160,7 @@ class UserResponse(BaseModel):
 
 
 class UserProfileUpdate(BaseModel):
-    """PUT /auth/profile Ã¢â‚¬â€ editable fields only."""
+    """PUT /auth/profile editable fields only."""
 
     full_name: Optional[str] = Field(default=None, min_length=3, max_length=120)
     phone: Optional[str] = Field(default=None, min_length=8, max_length=20)
@@ -205,7 +205,7 @@ class TokenResponse(BaseModel):
     user: UserResponse
 
 class ClientUpdate(BaseModel):
-    """PUT /clients/{id} Ã¢â‚¬â€ partial update."""
+    """PUT /clients/{id} partial update."""
 
     full_name: Optional[str] = None
     phone: Optional[str] = None
@@ -410,7 +410,7 @@ class VaccineResponse(BaseModel):
     dose: str
     unit: str
     raw_status: str
-    status: str                        # "completed" | "upcoming"
+    status: str                        
     notes: Optional[str] = None
     veterinarian_id: str
     veterinarian_name: str
@@ -601,5 +601,3 @@ class MedicationResponse(BaseModel):
 
 class MedicationCheckToggle(BaseModel):
     date: date
-
-
