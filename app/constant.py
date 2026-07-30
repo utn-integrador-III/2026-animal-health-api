@@ -9,6 +9,8 @@ class Collections:
     MEDICATIONS = "medications"
     CONSULTATIONS = "consultations"
     DIAGNOSES = "diagnoses"
+    NOTIFICATIONS = "notifications"
+    LAB_RESULTS = "lab_results"
 
 
 class UserRole:
@@ -47,6 +49,8 @@ class ApiPrefix:
     APPOINTMENTS = "/api/appointments"
     CONTACT = "/api/contact"
     CONSULTATIONS = "/api/consultations"
+    NOTIFICATIONS = "/api/notifications"
+    LAB_RESULTS = "/api/lab-results"
 
 
 class AuthToken:
