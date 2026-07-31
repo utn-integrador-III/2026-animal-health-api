@@ -1,4 +1,4 @@
-"""Constants required by the pet profile and pet registration stories."""
+﻿"""Constants required by the pet profile and pet registration stories."""
 
 class Collections:
     USERS = "users"
@@ -7,8 +7,10 @@ class Collections:
     VACCINES = "vaccines"
     MEDICAL_RECORDS = "medical_records"
     MEDICATIONS = "medications"
+    CONSULTATIONS = "consultations"
+    DIAGNOSES = "diagnoses"
     NOTIFICATIONS = "notifications"
-    LAB_RESULTS = "lab_results"  # ← NUEVO
+    LAB_RESULTS = "lab_results"
 
 
 class UserRole:
@@ -45,6 +47,8 @@ class ApiPrefix:
     PETS = "/api/pets"
     CLIENTS = "/api/clients"
     APPOINTMENTS = "/api/appointments"
+    CONTACT = "/api/contact"
+    CONSULTATIONS = "/api/consultations"
     NOTIFICATIONS = "/api/notifications"
     LAB_RESULTS = "/api/lab-results"  
     ADMIN = "/api/admin"

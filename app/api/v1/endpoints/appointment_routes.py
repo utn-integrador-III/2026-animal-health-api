@@ -1,4 +1,4 @@
-"""Appointment management endpoints for clients and veterinarians."""
+﻿"""Appointment management endpoints for clients and veterinarians."""
 
 from datetime import date, datetime, time, timedelta, timezone
 from typing import List, Optional
@@ -81,6 +81,13 @@ def _appointment_response(document_id: str, data: dict) -> schemas.AppointmentRe
     return schemas.AppointmentResponse(id=document_id, **data)
 
 
+def _pet_breed_summary(pet: dict, fallback: str = "Not specified") -> str:
+    primary = str(pet.get("breed_primary") or "").strip()
+    secondary = str(pet.get("breed_secondary") or "").strip()
+    if primary and secondary:
+        return f"{primary} / {secondary}"
+    return primary or secondary or fallback
+
 def _hydrate_pet_summary(db, data: dict) -> dict:
     pet_id = data.get("pet_id")
     if not pet_id:
@@ -98,7 +105,7 @@ def _hydrate_pet_summary(db, data: dict) -> dict:
         "pet_sex": pet.get("sex"),
         "pet_birth_date": pet.get("birth_date"),
         "pet_weight_kg": pet.get("weight_kg"),
-        "pet_breed": pet.get("breed_primary", data.get("pet_breed", "Not specified")),
+        "pet_breed": _pet_breed_summary(pet, data.get("pet_breed", "Not specified")),
         "pet_photo_url": pet.get("photo_url"),
     }
 
@@ -328,7 +335,7 @@ def create_appointment(
         "pet_sex": pet.get("sex"),
         "pet_birth_date": pet.get("birth_date"),
         "pet_weight_kg": pet.get("weight_kg"),
-        "pet_breed": pet.get("breed_primary", "Not specified"),
+        "pet_breed": _pet_breed_summary(pet),
         "pet_photo_url": pet.get("photo_url"),
         "owner_id": current_user["id"],
         "owner_name": current_user.get("full_name", "Client"),
@@ -389,7 +396,7 @@ def create_follow_up_appointment(
         "pet_sex": pet.get("sex"),
         "pet_birth_date": pet.get("birth_date"),
         "pet_weight_kg": pet.get("weight_kg"),
-        "pet_breed": pet.get("breed_primary", "Not specified"),
+        "pet_breed": _pet_breed_summary(pet),
         "pet_photo_url": pet.get("photo_url"),
         "owner_id": pet["owner_id"],
         "owner_name": owner.get("full_name", "Client"),
@@ -501,3 +508,5 @@ def cancel_appointment(
     })
     updated = reference.get()
     return _appointment_response(updated.id, updated.to_dict())
+
+
