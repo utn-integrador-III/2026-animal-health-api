@@ -502,3 +502,142 @@ def delete_medication(
     return None
 
 
+# ─── Allergy Endpoints ────────────────────────────────────────────────────────
+
+@router.get("/{pet_id}/allergies", response_model=List[schemas.AllergyResponse])
+def list_allergies(
+    pet_id: str,
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
+):
+    """Returns all allergies for a pet.
+
+    - Clients: can only read their own pet's allergies.
+    - Veterinarians: can only read allergies for pets they are assigned to.
+    """
+    db = get_firestore_db()
+    if current_user["role"] == UserRole.CLIENT:
+        _owned_pet(db, pet_id, current_user["id"])
+    else:
+        _assigned_pet(db, pet_id, current_user["id"])
+
+    snapshots = (
+        db.collection(Collections.ALLERGIES)
+        .where("pet_id", "==", pet_id)
+        .get()
+    )
+    return [
+        schemas.AllergyResponse(id=snapshot.id, **snapshot.to_dict())
+        for snapshot in snapshots
+    ]
+
+
+@router.post(
+    "/{pet_id}/allergies",
+    response_model=schemas.AllergyResponse,
+    status_code=201,
+)
+def create_allergy(
+    pet_id: str,
+    allergy_data: schemas.AllergyCreate,
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
+):
+    """Registers a new allergy for a pet."""
+    db = get_firestore_db()
+    if current_user["role"] == UserRole.CLIENT:
+        _owned_pet(db, pet_id, current_user["id"])
+    else:
+        _assigned_pet(db, pet_id, current_user["id"])
+
+    now_str = _now()
+    document = {
+        "pet_id": pet_id,
+        "allergen": allergy_data.allergen,
+        "category": allergy_data.category,
+        "severity": allergy_data.severity,
+        "reaction": allergy_data.reaction,
+        "notes": allergy_data.notes,
+        "registered_by": current_user["role"],
+        "veterinarian_id": current_user["id"] if current_user["role"] == UserRole.VETERINARIAN else None,
+        "veterinarian_name": current_user.get("full_name") if current_user["role"] == UserRole.VETERINARIAN else None,
+        "created_at": now_str,
+        "updated_at": now_str,
+    }
+    reference = db.collection(Collections.ALLERGIES).add(document)
+    return schemas.AllergyResponse(id=reference[1].id, **document)
+
+
+@router.get("/{pet_id}/allergies/{allergy_id}", response_model=schemas.AllergyResponse)
+def get_allergy(
+    pet_id: str,
+    allergy_id: str,
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
+):
+    """Retrieves a specific allergy record."""
+    db = get_firestore_db()
+    if current_user["role"] == UserRole.CLIENT:
+        _owned_pet(db, pet_id, current_user["id"])
+    else:
+        _assigned_pet(db, pet_id, current_user["id"])
+
+    reference = db.collection(Collections.ALLERGIES).document(allergy_id)
+    snapshot = reference.get()
+    if not snapshot.exists or snapshot.to_dict().get("pet_id") != pet_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Allergy not found",
+        )
+    return schemas.AllergyResponse(id=snapshot.id, **snapshot.to_dict())
+
+
+@router.put("/{pet_id}/allergies/{allergy_id}", response_model=schemas.AllergyResponse)
+def update_allergy(
+    pet_id: str,
+    allergy_id: str,
+    allergy_data: schemas.AllergyUpdate,
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN)),
+):
+    """Updates an existing allergy record (Veterinarian only)."""
+    db = get_firestore_db()
+    _assigned_pet(db, pet_id, current_user["id"])
+
+    reference = db.collection(Collections.ALLERGIES).document(allergy_id)
+    snapshot = reference.get()
+    if not snapshot.exists or snapshot.to_dict().get("pet_id") != pet_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Allergy not found",
+        )
+
+    update_data = allergy_data.model_dump(exclude_unset=True)
+    update_data["updated_at"] = _now()
+    update_data["veterinarian_id"] = current_user["id"]
+    update_data["veterinarian_name"] = current_user.get("full_name", "Veterinarian")
+
+    reference.update(update_data)
+    updated = reference.get()
+    return schemas.AllergyResponse(id=updated.id, **updated.to_dict())
+
+
+@router.delete("/{pet_id}/allergies/{allergy_id}", status_code=204)
+def delete_allergy(
+    pet_id: str,
+    allergy_id: str,
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN)),
+):
+    """Deletes an allergy record (Veterinarian only)."""
+    db = get_firestore_db()
+    _assigned_pet(db, pet_id, current_user["id"])
+
+    reference = db.collection(Collections.ALLERGIES).document(allergy_id)
+    snapshot = reference.get()
+    if not snapshot.exists or snapshot.to_dict().get("pet_id") != pet_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Allergy not found",
+        )
+
+    reference.delete()
+    return None
+
+
+
