@@ -2,7 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import ALLOWED_ORIGINS
-from .api.v1.endpoints import appointment_routes, auth_routes, pet_routes, notification_routes, lab_results
+from .api.v1.endpoints import (
+    appointment_routes,
+    auth_routes,
+    pet_routes,
+    notification_routes,
+    lab_results,
+    vet_admin_routes,  
+)
 from .utils.scheduler import start_scheduler
 
 app = FastAPI(
@@ -23,19 +30,22 @@ app.add_middleware(
 scheduler = start_scheduler()
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
-app.include_router(auth_routes)  
+app.include_router(auth_routes.router)
 
 # ─── Pets (CRUD + history) ───────────────────────────────────────────────────
-app.include_router(pet_routes)   
+app.include_router(pet_routes.router)
 
 # ─── Appointments ──────────────────────────────────────────────────────────
-app.include_router(appointment_routes)  
+app.include_router(appointment_routes.router)
 
 # ─── Notifications ──────────────────────────────────────────────────────────
-app.include_router(notification_routes)
+app.include_router(notification_routes.router)
 
 # ─── Lab Results ──────────────────────────────────────────────────────────
-app.include_router(lab_results)  # ← CORREGIDO (sin .router)
+app.include_router(lab_results.router)
+
+# ─── Admin Panel ──────────────────────────────────────────────────────────
+app.include_router(vet_admin_routes)  
 
 
 @app.get("/")

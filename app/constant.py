@@ -15,7 +15,7 @@ class UserRole:
     CLIENT = "client"
     VETERINARIAN = "veterinarian"
     ADMIN        = "admin"
-    AUTHENTICATED = (CLIENT, VETERINARIAN)
+    AUTHENTICATED = (CLIENT, VETERINARIAN,ADMIN)
 
 
 class PetSpecies:
@@ -46,7 +46,8 @@ class ApiPrefix:
     CLIENTS = "/api/clients"
     APPOINTMENTS = "/api/appointments"
     NOTIFICATIONS = "/api/notifications"
-    LAB_RESULTS = "/api/lab-results"  # ← NUEVO
+    LAB_RESULTS = "/api/lab-results"  
+    ADMIN = "/api/admin"
 
 
 class AuthToken:
