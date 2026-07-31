@@ -3,13 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import ALLOWED_ORIGINS
 from .api.v1.endpoints import (
-  appointment_routes, 
-  auth_routes,
-  contact_routes, 
-  consultation_routes, 
-  pet_routes,
-  notification_routes,
-  lab_results,
+    appointment_routes,
+    auth_routes,
+    pet_routes,
+    notification_routes,
+    lab_results,
+    vet_admin_routes,  
 )
 from .utils.scheduler import start_scheduler
 
