@@ -156,6 +156,19 @@ class MedicalHistoryAndMedicationTests(unittest.TestCase):
             "veterinarian_name": "Dr. Smith",
             "created_at": "2026-07-15T00:00:00+00:00",
         }
+        # Add notifications to sync
+        db.collection(Collections.NOTIFICATIONS).data["notif-1"] = {
+            "medication_id": "med-1",
+            "scheduled_date": "2026-07-17",
+            "read": False,
+            "read_at": None,
+        }
+        db.collection(Collections.NOTIFICATIONS).data["notif-2"] = {
+            "medication_id": "med-1",
+            "scheduled_date": "2026-07-16",
+            "read": True,
+            "read_at": "2026-07-16T12:00:00",
+        }
         
         # Toggle check for new date (add check)
         toggle_payload = schemas.MedicationCheckToggle(date="2026-07-17")
@@ -165,6 +178,9 @@ class MedicalHistoryAndMedicationTests(unittest.TestCase):
             )
         self.assertIn("2026-07-17", result.checked_dates)
         self.assertIn("2026-07-16", result.checked_dates)
+        # Assert notif-1 got marked as read
+        self.assertTrue(db.collection(Collections.NOTIFICATIONS).data["notif-1"]["read"])
+        self.assertIsNotNone(db.collection(Collections.NOTIFICATIONS).data["notif-1"]["read_at"])
 
         # Toggle check for existing date (remove check)
         toggle_payload_remove = schemas.MedicationCheckToggle(date="2026-07-16")
@@ -174,6 +190,9 @@ class MedicalHistoryAndMedicationTests(unittest.TestCase):
             )
         self.assertNotIn("2026-07-16", result.checked_dates)
         self.assertIn("2026-07-17", result.checked_dates)
+        # Assert notif-2 got marked as unread
+        self.assertFalse(db.collection(Collections.NOTIFICATIONS).data["notif-2"]["read"])
+        self.assertIsNone(db.collection(Collections.NOTIFICATIONS).data["notif-2"]["read_at"])
 
     # ─── Delete Medication Tests ─────────────────────────────────────────────
 

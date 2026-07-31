@@ -418,6 +418,7 @@ def create_medication(
         "frequency": medication_data.frequency,
         "start_date": medication_data.start_date.isoformat(),
         "end_date": end_date_str,
+        "administration_time": medication_data.administration_time,
         "notes": medication_data.notes,
         "status": computed_status,
         "checked_dates": [],
@@ -458,12 +459,33 @@ def toggle_medication_check(
     checked_dates = data.get("checked_dates", [])
     date_str = toggle_data.date.isoformat()
 
-    if date_str in checked_dates:
+    is_checking = date_str not in checked_dates
+
+    if not is_checking:
         checked_dates.remove(date_str)
     else:
         checked_dates.append(date_str)
 
     reference.update({"checked_dates": checked_dates})
+
+    # Sync with notifications for this medication for today
+    notif_query = db.collection(Collections.NOTIFICATIONS) \
+        .where("medication_id", "==", medication_id) \
+        .where("scheduled_date", "==", date_str) \
+        .stream()
+
+    for notif_doc in notif_query:
+        if is_checking:
+            notif_doc.reference.update({
+                "read": True,
+                "read_at": datetime.now(timezone.utc).isoformat()
+            })
+        else:
+            notif_doc.reference.update({
+                "read": False,
+                "read_at": None
+            })
+
     updated = reference.get()
     
     updated_data = updated.to_dict()

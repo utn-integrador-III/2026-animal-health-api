@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import ALLOWED_ORIGINS
@@ -8,7 +8,9 @@ from .api.v1.endpoints import (
     pet_routes,
     notification_routes,
     lab_results,
-    vet_admin_routes,  
+    vet_admin_routes,
+    contact_routes,
+    consultation_routes,
 )
 from .utils.scheduler import start_scheduler
 
@@ -40,8 +42,8 @@ app.include_router(appointment_routes.router)
 # ─── Notifications ──────────────────────────────────────────────────────────
 app.include_router(notification_routes.router)
 
-# ─── Lab Results ──────────────────────────────────────────────────────────
-app.include_router(lab_results)
+# ─── Lab Results ────────────────------------------------------------------
+app.include_router(lab_results.router)
 
 # Public contact form.
 app.include_router(contact_routes.router)
@@ -56,6 +58,8 @@ def root():
         "docs": "/docs",
         "version": "1.0.0",
     }
+
+
 
 @app.get("/health")
 def health_check():
