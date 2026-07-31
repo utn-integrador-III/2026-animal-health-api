@@ -2,7 +2,7 @@
 
 import unittest
 from unittest.mock import patch
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import HTTPException
 
@@ -110,7 +110,7 @@ class MedicalHistoryAndMedicationTests(unittest.TestCase):
             dosage="0.5 ml",
             frequency="Diario",
             start_date="2026-07-17",
-            end_date="2026-07-24",
+            end_date=(date.today() + timedelta(days=7)).isoformat(),
             notes="Vía oral",
         )
         with patch.object(pet_routes, "get_firestore_db", return_value=db):
@@ -120,8 +120,26 @@ class MedicalHistoryAndMedicationTests(unittest.TestCase):
                 current_user=VET_USER,
             )
         self.assertEqual(result.name, "Vitamina B12")
-        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.status, "active")
 
+    def test_create_medication_with_past_end_date_is_completed(self):
+        db = _db_with_pet_and_appointment()
+        payload = schemas.MedicationCreate(
+            name="Tratamiento finalizado",
+            dosage="1 tableta",
+            frequency="Diario",
+            start_date=(date.today() - timedelta(days=10)).isoformat(),
+            end_date=(date.today() - timedelta(days=1)).isoformat(),
+            notes="Tratamiento anterior",
+        )
+        with patch.object(pet_routes, "get_firestore_db", return_value=db):
+            result = pet_routes.create_medication(
+                "pet-1",
+                payload,
+                current_user=VET_USER,
+            )
+        self.assertEqual(result.name, "Tratamiento finalizado")
+        self.assertEqual(result.status, "completed")
     def test_toggle_medication_check(self):
         db = _db_with_pet_and_appointment()
         db.collection(Collections.MEDICATIONS).data["med-1"] = {
@@ -196,4 +214,5 @@ class MedicalHistoryAndMedicationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 

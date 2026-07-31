@@ -1,4 +1,4 @@
-"""Schemas required by DB-US-02 and FE-US-02."""
+﻿"""Schemas required by DB-US-02 and FE-US-02."""
 
 from datetime import date, time
 import re
@@ -160,7 +160,7 @@ class UserResponse(BaseModel):
 
 
 class UserProfileUpdate(BaseModel):
-    """PUT /auth/profile â€” editable fields only."""
+    """PUT /auth/profile editable fields only."""
 
     full_name: Optional[str] = Field(default=None, min_length=3, max_length=120)
     phone: Optional[str] = Field(default=None, min_length=8, max_length=20)
@@ -205,7 +205,7 @@ class TokenResponse(BaseModel):
     user: UserResponse
 
 class ClientUpdate(BaseModel):
-    """PUT /clients/{id} â€” partial update."""
+    """PUT /clients/{id} partial update."""
 
     full_name: Optional[str] = None
     phone: Optional[str] = None
@@ -382,7 +382,7 @@ class VaccineCreate(BaseModel):
     scheduled_date: date                                       # application date
     expiration_date: Optional[date] = None
     next_dose: Optional[date] = None
-    administration_route: str = Field(default="Subcutánea", max_length=80)
+    administration_route: str = Field(default="SubcutÃ¡nea", max_length=80)
     dose: str = Field(default="1", max_length=20)
     unit: str = Field(default="dosis", max_length=30)
     raw_status: str = Field(default="Aplicada correctamente", max_length=80)
@@ -410,7 +410,7 @@ class VaccineResponse(BaseModel):
     dose: str
     unit: str
     raw_status: str
-    status: str                        # "completed" | "upcoming"
+    status: str                        
     notes: Optional[str] = None
     veterinarian_id: str
     veterinarian_name: str
@@ -442,6 +442,132 @@ class ClinicalRecordResponse(BaseModel):
     date: str
     created_at: str
 
+
+
+class WalkInClientPet(BaseModel):
+    id: str
+    name: str
+    species: str
+    sex: str
+    breed_primary: str
+    birth_date: date
+    weight_kg: float
+    photo_url: Optional[str] = None
+
+
+class WalkInClientLookupResponse(BaseModel):
+    client: Optional[UserResponse] = None
+    pets: List[WalkInClientPet] = []
+
+
+class WalkInConsultationCreate(BaseModel):
+    client_id: Optional[str] = None
+    client_name: str = Field(min_length=3, max_length=120)
+    client_email: str = Field(min_length=5, max_length=254)
+    client_phone: Optional[str] = Field(default=None, max_length=20)
+    pet_id: Optional[str] = None
+    pet_name: Optional[str] = Field(default=None, min_length=2, max_length=60)
+    pet_birth_date: Optional[date] = None
+    pet_species: Optional[str] = None
+    pet_sex: Optional[str] = None
+    pet_breed: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    pet_weight_kg: Optional[float] = Field(default=None, gt=0, le=999)
+    reason: str = Field(min_length=3, max_length=300)
+
+    @field_validator("client_email")
+    @classmethod
+    def normalize_client_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if not EMAIL_PATTERN.fullmatch(value):
+            raise ValueError("Invalid email address")
+        return value
+
+    @field_validator("client_name", "reason")
+    @classmethod
+    def strip_required_walk_in_text(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("client_phone", "pet_name", "pet_breed")
+    @classmethod
+    def strip_optional_walk_in_text(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip() if value and value.strip() else value
+
+    @field_validator("pet_species")
+    @classmethod
+    def validate_walk_in_species(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in PetSpecies.ALLOWED:
+            raise ValueError("Unsupported pet species")
+        return value
+
+    @field_validator("pet_sex")
+    @classmethod
+    def validate_walk_in_sex(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in PetSex.ALLOWED:
+            raise ValueError("Sex must be Female or Male")
+        return value
+
+    @field_validator("pet_birth_date")
+    @classmethod
+    def validate_walk_in_birth_date(cls, value: Optional[date]) -> Optional[date]:
+        if value is not None and value > date.today():
+            raise ValueError("Date of birth cannot be in the future")
+        return value
+
+    @model_validator(mode="after")
+    def validate_existing_or_new_pet(self):
+        if self.pet_id:
+            return self
+        missing = [
+            field for field in ("pet_name", "pet_birth_date", "pet_species", "pet_sex", "pet_breed", "pet_weight_kg")
+            if getattr(self, field) in (None, "")
+        ]
+        if missing:
+            raise ValueError("New walk-in consultations require complete pet information")
+        return self
+
+
+class WalkInConsultationResponse(BaseModel):
+    id: str
+    client_id: str
+    owner_name: str
+    owner_email: str
+    owner_phone: Optional[str] = None
+    pet_id: str
+    pet_name: str
+    pet_species: str
+    pet_sex: str
+    pet_breed: str
+    pet_weight_kg: float
+    pet_photo_url: Optional[str] = None
+    reason: str
+    veterinarian_id: str
+    veterinarian_name: str
+    status: str
+    source: str
+    created_at: str
+
+
+class DiagnosisCreate(BaseModel):
+    consultation_id: str = Field(min_length=1)
+    pet_id: str = Field(min_length=1)
+    diagnosis: str = Field(min_length=2, max_length=300)
+    clinical_notes: str = Field(min_length=2, max_length=2000)
+
+    @field_validator("diagnosis", "clinical_notes")
+    @classmethod
+    def strip_diagnosis_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class DiagnosisResponse(BaseModel):
+    id: str
+    consultation_id: str
+    pet_id: str
+    diagnosis: str
+    clinical_notes: str
+    veterinarian_id: str
+    veterinarian_name: str
+    created_at: str
 
 class MedicationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=150)
@@ -475,4 +601,3 @@ class MedicationResponse(BaseModel):
 
 class MedicationCheckToggle(BaseModel):
     date: date
-
