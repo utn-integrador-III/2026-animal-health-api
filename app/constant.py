@@ -17,8 +17,8 @@ class Collections:
 class UserRole:
     CLIENT = "client"
     VETERINARIAN = "veterinarian"
-    ADMIN = "admin"
-    AUTHENTICATED = (CLIENT, VETERINARIAN)
+    ADMIN        = "admin"
+    AUTHENTICATED = (CLIENT, VETERINARIAN,ADMIN)
 
 
 class PetSpecies:
@@ -51,7 +51,8 @@ class ApiPrefix:
     CONTACT = "/api/contact"
     CONSULTATIONS = "/api/consultations"
     NOTIFICATIONS = "/api/notifications"
-    LAB_RESULTS = "/api/lab-results"
+    LAB_RESULTS = "/api/lab-results"  
+    ADMIN = "/api/admin"
 
 
 class AuthToken:
