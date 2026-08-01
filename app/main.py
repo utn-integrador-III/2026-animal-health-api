@@ -41,7 +41,7 @@ app.include_router(appointment_routes.router)
 app.include_router(notification_routes.router)
 
 # ─── Lab Results ──────────────────────────────────────────────────────────
-app.include_router(lab_results)
+app.include_router(lab_results.router)
 
 # Public contact form.
 app.include_router(contact_routes.router)

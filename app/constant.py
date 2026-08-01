@@ -1,4 +1,4 @@
-﻿"""Constants required by the pet profile and pet registration stories."""
+"""Constants required by the pet profile and pet registration stories."""
 
 class Collections:
     USERS = "users"
@@ -11,6 +11,7 @@ class Collections:
     DIAGNOSES = "diagnoses"
     NOTIFICATIONS = "notifications"
     LAB_RESULTS = "lab_results"
+    ALLERGIES = "allergies"
 
 
 class UserRole:
