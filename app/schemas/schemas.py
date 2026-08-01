@@ -603,3 +603,46 @@ class MedicationResponse(BaseModel):
 
 class MedicationCheckToggle(BaseModel):
     date: date
+
+
+class AllergyCreate(BaseModel):
+    allergen: str = Field(min_length=1, max_length=120)
+    category: str = Field(min_length=1, max_length=80)  # e.g., food, environmental, medication, other
+    severity: str = Field(min_length=1, max_length=80)  # e.g., mild, moderate, severe
+    reaction: Optional[str] = Field(default=None, max_length=500)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+    @field_validator("allergen", "category", "severity")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class AllergyUpdate(BaseModel):
+    allergen: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    category: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    severity: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    reaction: Optional[str] = Field(default=None, max_length=500)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+    @field_validator("allergen", "category", "severity")
+    @classmethod
+    def strip_optional_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return value.strip()
+
+
+class AllergyResponse(BaseModel):
+    id: str
+    pet_id: str
+    allergen: str
+    category: str
+    severity: str
+    reaction: Optional[str] = None
+    notes: Optional[str] = None
+    registered_by: str
+    veterinarian_id: Optional[str] = None
+    veterinarian_name: Optional[str] = None
+    created_at: str
+    updated_at: str
