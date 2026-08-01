@@ -66,8 +66,13 @@ class FakeQuery:
         matches = []
         for document_id, data in self.collection.data.items():
             if all(data.get(f) == v for f, v in self.filters):
-                matches.append(FakeSnapshot(document_id, data))
+                snapshot = FakeSnapshot(document_id, data)
+                snapshot.reference = FakeDocument(self.collection, document_id)
+                matches.append(snapshot)
         return matches[: self.limit_count] if self.limit_count else matches
+
+    def stream(self):
+        return self.get()
 
 
 class FakeCollection:
@@ -88,6 +93,14 @@ class FakeCollection:
         document = self.document()
         document.create(data)
         return None, document
+
+    def stream(self):
+        snapshots = []
+        for document_id, data in self.data.items():
+            snapshot = FakeSnapshot(document_id, data)
+            snapshot.reference = FakeDocument(self, document_id)
+            snapshots.append(snapshot)
+        return snapshots
 
 
 class FakeFirestore:

@@ -1,7 +1,7 @@
 """Notification service for managing user notifications."""
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 from google.cloud.firestore import CollectionReference
@@ -90,6 +90,87 @@ class NotificationService:
 
         except Exception as e:
             logger.error(f"Error checking vaccines: {e}")
+            return {"success": False, "error": str(e), "notifications_created": 0}
+
+    async def check_medications_due_for_notification(self) -> dict:
+        """Check active medications and create notifications for those due today."""
+        try:
+            logger.info("Checking medications due for notification...")
+            db = get_firestore_db()
+            medications_ref = db.collection(Collections.MEDICATIONS)
+            active_medications = medications_ref.where("status", "==", "active").stream()
+
+            today = date.today()
+            today_str = today.isoformat()
+            notifications_created = 0
+            errors = []
+
+            for med_doc in active_medications:
+                med_data = med_doc.to_dict()
+                med_data["id"] = med_doc.id
+
+                try:
+                    start_date_str = med_data.get("start_date")
+                    end_date_str = med_data.get("end_date")
+
+                    if not start_date_str or not end_date_str:
+                        continue
+
+                    start_date = date.fromisoformat(start_date_str)
+                    end_date = date.fromisoformat(end_date_str)
+
+                    if start_date <= today <= end_date:
+                        pet_id = med_data.get("pet_id")
+                        pet_doc = db.collection(Collections.PETS).document(pet_id).get()
+                        if not pet_doc.exists:
+                            continue
+                        pet_data = pet_doc.to_dict()
+                        owner_id = pet_data.get("owner_id")
+                        pet_name = pet_data.get("name", "Mascota")
+
+                        if not owner_id:
+                            continue
+
+                        # Check if a notification for this medication was already created for today
+                        notif_query = db.collection(Collections.NOTIFICATIONS) \
+                            .where("user_id", "==", owner_id) \
+                            .where("medication_id", "==", med_doc.id) \
+                            .where("scheduled_date", "==", today_str) \
+                            .get()
+
+                        if len(notif_query) == 0:
+                            notification_data = {
+                                "user_id": owner_id,
+                                "pet_id": pet_id,
+                                "medication_id": med_doc.id,
+                                "type": "medication_reminder",
+                                "title": f"💊 Hora de la medicina para {pet_name}",
+                                "message": f"Es hora de darle a {pet_name} su medicamento: {med_data.get('name')}.",
+                                "medication_name": med_data.get("name"),
+                                "medication_dosage": med_data.get("dosage"),
+                                "medication_time": med_data.get("administration_time") or "08:00",
+                                "pet_name": pet_name,
+                                "read": False,
+                                "urgency": "info",
+                                "scheduled_date": today_str,
+                                "link": f"/pets/{pet_id}/medications",
+                                "created_at": datetime.now().isoformat()
+                            }
+                            db.collection(Collections.NOTIFICATIONS).add(notification_data)
+                            notifications_created += 1
+                            logger.info(f"Notification created for medication {med_doc.id} (Pet: {pet_name})")
+
+                except Exception as e:
+                    errors.append(f"Medication {med_doc.id}: {str(e)}")
+                    logger.error(f"Error processing medication {med_doc.id}: {e}")
+
+            return {
+                "success": True,
+                "notifications_created": notifications_created,
+                "errors": errors if errors else None
+            }
+        except Exception as e:
+            logger.error(f"Error checking medications: {e}")
             return {"success": False, "error": str(e), "notifications_created": 0}
 
     async def _create_vaccine_notification(self, vaccine_data: dict, days_until_expiration: int):

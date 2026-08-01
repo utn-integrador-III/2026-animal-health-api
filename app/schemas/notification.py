@@ -9,7 +9,7 @@ class NotificationBase(BaseModel):
     """Base Notification model."""
     user_id: str
     pet_id: str
-    vaccine_id: str
+    vaccine_id: Optional[str] = None
     type: str = "vaccine_expiration"
     title: str
     message: str
@@ -18,6 +18,12 @@ class NotificationBase(BaseModel):
     expiration_date: Optional[str] = None
     days_until: Optional[int] = None
     link: Optional[str] = None
+    medication_id: Optional[str] = None
+    medication_name: Optional[str] = None
+    medication_dosage: Optional[str] = None
+    medication_time: Optional[str] = None
+    pet_name: Optional[str] = None
+    scheduled_date: Optional[str] = None
 
 
 class NotificationCreate(NotificationBase):
@@ -42,7 +48,7 @@ class NotificationResponse(BaseModel):
     id: str
     user_id: str
     pet_id: str
-    vaccine_id: str
+    vaccine_id: Optional[str] = None
     type: str
     title: str
     message: str
@@ -53,6 +59,12 @@ class NotificationResponse(BaseModel):
     link: Optional[str] = None
     created_at: Optional[str] = None
     read_at: Optional[str] = None
+    medication_id: Optional[str] = None
+    medication_name: Optional[str] = None
+    medication_dosage: Optional[str] = None
+    medication_time: Optional[str] = None
+    pet_name: Optional[str] = None
+    scheduled_date: Optional[str] = None
 
 
 class NotificationListResponse(BaseModel):

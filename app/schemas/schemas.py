@@ -575,6 +575,7 @@ class MedicationCreate(BaseModel):
     frequency: str = Field(min_length=1, max_length=100)
     start_date: date
     end_date: date
+    administration_time: Optional[str] = Field(default=None, max_length=50)
     notes: Optional[str] = Field(default=None, max_length=2000)
 
     @field_validator("name", "dosage", "frequency")
@@ -593,6 +594,7 @@ class MedicationResponse(BaseModel):
     frequency: str
     start_date: str
     end_date: str
+    administration_time: Optional[str] = None
     notes: Optional[str] = None
     status: str  # "active" | "completed"
     checked_dates: List[str] = []
@@ -643,4 +645,4 @@ class AllergyResponse(BaseModel):
     veterinarian_id: Optional[str] = None
     veterinarian_name: Optional[str] = None
     created_at: str
-    updated_at: str
+    updated_at: str

@@ -23,6 +23,18 @@ def check_vaccine_notifications():
         logger.error("Error in vaccine notification check: %s", e)
 
 
+def check_medication_notifications():
+    """Task to check active medications and schedule notifications."""
+    logger.info("Running medication notification check at %s", datetime.now())
+    try:
+        import asyncio
+        service = NotificationService()
+        result = asyncio.run(service.check_medications_due_for_notification())
+        logger.info("Medication check completed: %s", result)
+    except Exception as e:
+        logger.error("Error in medication check: %s", e)
+
+
 def start_scheduler():
     """Start the background scheduler for daily tasks."""
     scheduler = BackgroundScheduler()
@@ -34,7 +46,14 @@ def start_scheduler():
         replace_existing=True
     )
 
+    scheduler.add_job(
+        check_medication_notifications,
+        trigger=CronTrigger(minute=0),
+        id="medication_notifications",
+        replace_existing=True
+    )
+
     scheduler.start()
-    logger.info("Scheduler started - vaccine notifications will run daily at 8:00 AM")
+    logger.info("Scheduler started - vaccine notifications daily, medication checks hourly.")
 
     return scheduler
