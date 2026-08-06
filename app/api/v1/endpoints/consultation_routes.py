@@ -113,6 +113,11 @@ def create_walk_in_consultation(
         client = client_snapshot.to_dict()
         if client.get("role") != UserRole.CLIENT:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is not a client account")
+        if client.get("email", "").strip().lower() != consultation_data.client_email:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The selected client does not match the supplied email",
+            )
         client_ref.update({
             "full_name": consultation_data.client_name,
             "phone": consultation_data.client_phone,

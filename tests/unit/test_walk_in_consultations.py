@@ -142,6 +142,30 @@ class WalkInConsultationTests(unittest.TestCase):
             temporary_password="TempPass2026!",
         )
 
+    def test_walk_in_rejects_a_client_id_from_another_email(self):
+        db = self._db_with_existing_client_pet()
+        payload = schemas.WalkInConsultationCreate(
+            client_id="client-1",
+            client_name="Carmen Fonseca",
+            client_email="carmen@example.com",
+            pet_name="Bonny",
+            pet_birth_date="2024-06-06",
+            pet_species="Rabbit",
+            pet_sex="Female",
+            pet_breed="Gigante de Flandes",
+            pet_weight_kg=10,
+            reason="No come y pasa dormida",
+        )
+
+        with patch.object(consultation_routes, "get_firestore_db", return_value=db):
+            with self.assertRaises(HTTPException) as context:
+                consultation_routes.create_walk_in_consultation(payload, current_user=VET_USER)
+
+        self.assertEqual(context.exception.status_code, 409)
+        self.assertEqual(db.collection(Collections.USERS).data["client-1"]["email"], "abby@example.com")
+        self.assertEqual(len(db.collection(Collections.PETS).data), 1)
+        self.assertEqual(len(db.collection(Collections.CONSULTATIONS).data), 0)
+
     def test_vet_saves_diagnosis_and_client_sees_it_in_medical_history(self):
         db = self._db_with_existing_client_pet()
         db.collection(Collections.CONSULTATIONS).data["consultation-1"] = {
