@@ -1,20 +1,28 @@
 ﻿"""External walk-in consultation and diagnosis endpoints."""
 
 from datetime import datetime, timezone
+import secrets
+import string
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from .... import schemas
-from ....auth import email_document_id, require_roles
+from ....auth import email_document_id, hash_password, require_roles
 from ....constant import ApiPrefix, Collections, UserRole
 from ....firebase_config import get_firestore_db
+from ....services.email_service import EmailServiceError, send_temporary_password_email
 
 router = APIRouter(prefix=ApiPrefix.CONSULTATIONS, tags=["Consultations"])
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _temporary_password(length: int = 14) -> str:
+    alphabet = string.ascii_letters + string.digits + "!@#$%"
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def _client_response(snapshot) -> schemas.UserResponse:
@@ -38,6 +46,8 @@ def _pet_lookup_response(snapshot) -> schemas.WalkInClientPet:
         species=data.get("species", ""),
         sex=data.get("sex", ""),
         breed_primary=data.get("breed_primary", ""),
+        breed_secondary=data.get("breed_secondary"),
+        mixed_breed=data.get("mixed_breed", False),
         birth_date=data.get("birth_date"),
         weight_kg=data.get("weight_kg", 0),
         photo_url=data.get("photo_url"),
@@ -97,6 +107,7 @@ def create_walk_in_consultation(
     client_id = consultation_data.client_id or email_document_id(consultation_data.client_email)
     client_ref = db.collection(Collections.USERS).document(client_id)
     client_snapshot = client_ref.get()
+    temporary_password = None
 
     if client_snapshot.exists:
         client = client_snapshot.to_dict()
@@ -114,6 +125,9 @@ def create_walk_in_consultation(
             "email": consultation_data.client_email,
         })
     else:
+        if not consultation_data.create_client_account:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A new client account is required")
+        temporary_password = _temporary_password()
         client = {
             "email": consultation_data.client_email,
             "full_name": consultation_data.client_name,
@@ -122,7 +136,7 @@ def create_walk_in_consultation(
             "is_active": True,
             "registration_source": "walk_in",
             "must_set_password": True,
-            "password_hash": "",
+            "hashed_password": hash_password(temporary_password),
             "created_at": _now(),
         }
         client_ref.create(client)
@@ -138,8 +152,8 @@ def create_walk_in_consultation(
             "species": consultation_data.pet_species,
             "sex": consultation_data.pet_sex,
             "breed_primary": consultation_data.pet_breed,
-            "breed_secondary": None,
-            "mixed_breed": False,
+            "breed_secondary": consultation_data.pet_breed_secondary,
+            "mixed_breed": consultation_data.pet_mixed_breed,
             "weight_kg": consultation_data.pet_weight_kg,
             "owner_id": client_id,
             "created_at": _now(),
@@ -193,8 +207,23 @@ def create_walk_in_consultation(
         "consultation_id": reference[1].id,
         "created_at": _now(),
     }
-    db.collection(Collections.APPOINTMENTS).add(appointment_document)
-    return schemas.WalkInConsultationResponse(id=reference[1].id, **document)
+    appointment_reference = db.collection(Collections.APPOINTMENTS).add(appointment_document)
+
+    if temporary_password and consultation_data.send_temporary_password:
+        try:
+            send_temporary_password_email(
+                recipient_email=consultation_data.client_email,
+                recipient_name=consultation_data.client_name,
+                temporary_password=temporary_password,
+            )
+        except EmailServiceError as exc:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+
+    return schemas.WalkInConsultationResponse(
+        id=reference[1].id,
+        appointment_id=appointment_reference[1].id,
+        **document,
+    )
 
 
 @router.post("/{consultation_id}/diagnoses", response_model=schemas.DiagnosisResponse, status_code=201)
