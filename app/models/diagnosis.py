@@ -23,6 +23,13 @@ class DiagnosisBase(BaseModel):
     clinical_plan: Optional[str] = None
     owner_instructions: Optional[str] = None
     follow_up: Optional[str] = None
+    weight_kg: Optional[str] = None
+    temperature_c: Optional[str] = None
+    heart_rate_bpm: Optional[str] = None
+    respiratory_rate_rpm: Optional[str] = None
+    systems_eval: Optional[dict] = None
+    follow_up_date: Optional[str] = None
+    follow_up_reason: Optional[str] = None
 
 
 class DiagnosisCreate(DiagnosisBase):
@@ -45,6 +52,13 @@ class DiagnosisUpdate(BaseModel):
     clinical_plan: Optional[str] = None
     owner_instructions: Optional[str] = None
     follow_up: Optional[str] = None
+    weight_kg: Optional[str] = None
+    temperature_c: Optional[str] = None
+    heart_rate_bpm: Optional[str] = None
+    respiratory_rate_rpm: Optional[str] = None
+    systems_eval: Optional[dict] = None
+    follow_up_date: Optional[str] = None
+    follow_up_reason: Optional[str] = None
 
 
 class DiagnosisInDB(DiagnosisBase):

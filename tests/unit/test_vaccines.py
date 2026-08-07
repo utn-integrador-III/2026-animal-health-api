@@ -275,6 +275,26 @@ class VaccineEndpointTests(unittest.TestCase):
         )
         self.assertEqual(v.scheduled_date.isoformat(), "2099-01-01")
 
+    def test_vaccine_create_schema_full_payload(self):
+        payload = {
+            "name": "Rabia",
+            "type": "Rabia (Lyssavirus)",
+            "brand": "Merial",
+            "batch_number": None,
+            "scheduled_date": "2026-07-17",
+            "expiration_date": None,
+            "next_dose": None,
+            "administration_route": "Subcutánea",
+            "dose": "1",
+            "unit": "dosis",
+            "raw_status": "Aplicada correctamente",
+            "notes": "Sin reacciones"
+        }
+        v = schemas.VaccineCreate(**payload)
+        self.assertEqual(v.name, "Rabia")
+        self.assertEqual(v.type, "Rabia (Lyssavirus)")
+
 
 if __name__ == "__main__":
     unittest.main()
+

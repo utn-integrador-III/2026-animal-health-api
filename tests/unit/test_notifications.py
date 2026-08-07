@@ -63,6 +63,20 @@ class TestNotificationService(unittest.TestCase):
         # Verificar que no haya errores
         self.assertTrue(result["success"])
 
+    @patch('app.services.notification_service.get_firestore_db')
+    def test_get_user_notifications(self, mock_get_db):
+        """Prueba obtener notificaciones de un usuario."""
+        mock_get_db.return_value = self.mock_db
+        mock_collection = MagicMock()
+        self.mock_db.collection.return_value = mock_collection
+        mock_query = MagicMock()
+        mock_collection.where.return_value = mock_query
+        mock_query.stream.return_value = []
+
+        result = asyncio.run(self.service.get_user_notifications("user-1"))
+        self.assertIn("notifications", result)
+        self.assertIsInstance(result["notifications"], list)
+
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main()
