@@ -755,5 +755,39 @@ def get_diagnosis(
     return schemas.DiagnosisResponse(id=snapshot.id, **snapshot.to_dict())
 
 
+# ─── Lab Results Endpoints (via pet) ─────────────────────────────────────────
 
+@router.get("/{pet_id}/lab-results", response_model=List[dict])
+def list_lab_results(
+    pet_id: str,
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
+):
+    """Returns all lab results for a pet.
+
+    - Clients: can only read their own pet's results.
+    - Veterinarians: can only read results for pets they are assigned to.
+    """
+    db = get_firestore_db()
+    if current_user["role"] == UserRole.CLIENT:
+        _owned_pet(db, pet_id, current_user["id"])
+    else:
+        _assigned_pet(db, pet_id, current_user["id"])
+
+    snapshots = (
+        db.collection(Collections.LAB_RESULTS)
+        .where("pet_id", "==", pet_id)
+        .get()
+    )
+    results = []
+    for snapshot in snapshots:
+        data = snapshot.to_dict()
+        data["id"] = snapshot.id
+        # Normalize date fields to ISO string for JSON serialisation
+        for field in ("test_date", "created_at", "updated_at"):
+            if field in data and hasattr(data[field], "isoformat"):
+                data[field] = data[field].isoformat()
+        results.append(data)
+
+    results.sort(key=lambda x: x.get("test_date", ""), reverse=True)
+    return results
 

@@ -230,6 +230,43 @@ class MedicalHistoryAndMedicationTests(unittest.TestCase):
                 pet_routes.delete_medication("pet-1", "non-existent", current_user=VET_USER)
         self.assertEqual(ctx.exception.status_code, 404)
 
+    # ─── Lab Results Tests ───────────────────────────────────────────────────
+
+    def test_list_lab_results_client_success(self):
+        db = _db_with_pet_and_appointment()
+        db.collection(Collections.LAB_RESULTS).data["lab-1"] = {
+            "pet_id": "pet-1",
+            "test_type": "Hemograma",
+            "test_date": "2026-07-20",
+            "clinical_observations": "Todo normal",
+        }
+        with patch.object(pet_routes, "get_firestore_db", return_value=db):
+            result = pet_routes.list_lab_results("pet-1", current_user=CLIENT_USER)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["test_type"], "Hemograma")
+
+    def test_list_lab_results_vet_success(self):
+        db = _db_with_pet_and_appointment()
+        db.collection(Collections.LAB_RESULTS).data["lab-1"] = {
+            "pet_id": "pet-1",
+            "test_type": "Hemograma",
+            "test_date": "2026-07-20",
+            "clinical_observations": "Todo normal",
+        }
+        with patch.object(pet_routes, "get_firestore_db", return_value=db):
+            result = pet_routes.list_lab_results("pet-1", current_user=VET_USER)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["test_type"], "Hemograma")
+
+    def test_list_lab_results_vet_not_assigned_forbidden(self):
+        db = FakeFirestore()
+        db.collection(Collections.PETS).data["pet-1"] = dict(BASE_PET)
+        other_vet = {"id": "vet-99", "role": UserRole.VETERINARIAN, "full_name": "Dr. X"}
+        with patch.object(pet_routes, "get_firestore_db", return_value=db):
+            with self.assertRaises(HTTPException) as ctx:
+                pet_routes.list_lab_results("pet-1", current_user=other_vet)
+        self.assertEqual(ctx.exception.status_code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()
