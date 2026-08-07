@@ -58,5 +58,24 @@ def register_veterinarian(
     # Obtener el usuario recién creado
     created_user = user_ref.get().to_dict()
     created_user["id"] = user_id
-    
+
     return created_user
+
+
+def list_veterinarians() -> list[dict]:
+    """
+    Lista todos los usuarios con rol veterinario.
+    SOLO ACCESIBLE PARA ADMINISTRADORES.
+    """
+    db = get_firestore_db()
+    docs = db.collection(Collections.USERS).where(
+        "role", "==", UserRole.VETERINARIAN
+    ).get()
+
+    veterinarians = []
+    for doc in docs:
+        vet = doc.to_dict()
+        vet["id"] = doc.id
+        veterinarians.append(vet)
+
+    return veterinarians

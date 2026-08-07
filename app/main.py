@@ -42,11 +42,7 @@ app.include_router(appointment_routes.router)
 # ─── Notifications ──────────────────────────────────────────────────────────
 app.include_router(notification_routes.router)
 
-<<<<<<< HEAD
-# ─── Lab Results ────────────────------------------------------------------
-=======
 # ─── Lab Results ──────────────────────────────────────────────────────────
->>>>>>> dev
 app.include_router(lab_results.router)
 
 # Public contact form.
@@ -54,6 +50,9 @@ app.include_router(contact_routes.router)
 
 # External walk-in consultations and diagnoses.
 app.include_router(consultation_routes.router)
+
+# ─── Admin: veterinarian management ────────────────────────────────────────
+app.include_router(vet_admin_routes)
 
 @app.get("/")
 def root():
