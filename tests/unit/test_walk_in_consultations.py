@@ -6,7 +6,7 @@ from unittest.mock import patch
 from fastapi import HTTPException
 
 from app import schemas
-from app.auth import email_document_id
+from app.auth import email_document_id, verify_password
 from app.constant import Collections, UserRole
 from app.routes import consultation_routes, pet_routes
 from tests.unit.test_vaccines import FakeFirestore, VET_USER, CLIENT_USER
@@ -80,7 +80,9 @@ class WalkInConsultationTests(unittest.TestCase):
             reason="Consulta presencial por caida de plumas",
         )
 
-        with patch.object(consultation_routes, "get_firestore_db", return_value=db):
+        with patch.object(consultation_routes, "get_firestore_db", return_value=db), patch.object(
+            consultation_routes, "send_temporary_password_email"
+        ) as send_email:
             result = consultation_routes.create_walk_in_consultation(
                 payload,
                 current_user=VET_USER,
@@ -89,6 +91,8 @@ class WalkInConsultationTests(unittest.TestCase):
         self.assertEqual(result.client_id, "client-1")
         self.assertEqual(result.pet_id, "pet-1")
         self.assertEqual(result.source, "walk_in")
+        self.assertTrue(result.appointment_id)
+        send_email.assert_not_called()
         self.assertEqual(len(db.collection(Collections.CONSULTATIONS).data), 1)
         self.assertEqual(len(db.collection(Collections.APPOINTMENTS).data), 1)
 
@@ -103,11 +107,16 @@ class WalkInConsultationTests(unittest.TestCase):
             pet_species="Dog",
             pet_sex="Male",
             pet_breed="Mixed",
+            pet_breed_primary="Mixed",
+            pet_breed_secondary="Labrador",
+            pet_mixed_breed=True,
             pet_weight_kg=12.5,
             reason="Consulta externa por irritacion",
         )
 
-        with patch.object(consultation_routes, "get_firestore_db", return_value=db):
+        with patch.object(consultation_routes, "get_firestore_db", return_value=db), patch.object(
+            consultation_routes, "_temporary_password", return_value="TempPass2026!"
+        ), patch.object(consultation_routes, "send_temporary_password_email") as send_email:
             result = consultation_routes.create_walk_in_consultation(
                 payload,
                 current_user=VET_USER,
@@ -116,9 +125,46 @@ class WalkInConsultationTests(unittest.TestCase):
         client_id = email_document_id("samuel@example.com")
         self.assertIn(client_id, db.collection(Collections.USERS).data)
         self.assertEqual(db.collection(Collections.USERS).data[client_id]["must_set_password"], True)
+        self.assertTrue(verify_password(
+            "TempPass2026!",
+            db.collection(Collections.USERS).data[client_id]["hashed_password"],
+        ))
         self.assertEqual(result.owner_name, "Samuel Romero")
         self.assertEqual(result.pet_name, "Milo")
         self.assertEqual(len(db.collection(Collections.PETS).data), 1)
+        pet = next(iter(db.collection(Collections.PETS).data.values()))
+        self.assertEqual(pet["breed_secondary"], "Labrador")
+        self.assertTrue(pet["mixed_breed"])
+        self.assertIn(result.appointment_id, db.collection(Collections.APPOINTMENTS).data)
+        send_email.assert_called_once_with(
+            recipient_email="samuel@example.com",
+            recipient_name="Samuel Romero",
+            temporary_password="TempPass2026!",
+        )
+
+    def test_walk_in_rejects_a_client_id_from_another_email(self):
+        db = self._db_with_existing_client_pet()
+        payload = schemas.WalkInConsultationCreate(
+            client_id="client-1",
+            client_name="Carmen Fonseca",
+            client_email="carmen@example.com",
+            pet_name="Bonny",
+            pet_birth_date="2024-06-06",
+            pet_species="Rabbit",
+            pet_sex="Female",
+            pet_breed="Gigante de Flandes",
+            pet_weight_kg=10,
+            reason="No come y pasa dormida",
+        )
+
+        with patch.object(consultation_routes, "get_firestore_db", return_value=db):
+            with self.assertRaises(HTTPException) as context:
+                consultation_routes.create_walk_in_consultation(payload, current_user=VET_USER)
+
+        self.assertEqual(context.exception.status_code, 409)
+        self.assertEqual(db.collection(Collections.USERS).data["client-1"]["email"], "abby@example.com")
+        self.assertEqual(len(db.collection(Collections.PETS).data), 1)
+        self.assertEqual(len(db.collection(Collections.CONSULTATIONS).data), 0)
 
     def test_vet_saves_diagnosis_and_client_sees_it_in_medical_history(self):
         db = self._db_with_existing_client_pet()

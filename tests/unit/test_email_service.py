@@ -73,3 +73,28 @@ def test_send_contact_email_raises_when_brevo_rejects_message():
             )
 
     assert str(exc_info.value) == "Brevo returned status 401."
+
+
+def test_send_temporary_password_email_targets_new_client():
+    response = Mock(status_code=201)
+    client = Mock()
+    client.post.return_value = response
+    client_context = Mock()
+    client_context.__enter__ = Mock(return_value=client)
+    client_context.__exit__ = Mock(return_value=None)
+
+    with patch.object(email_service, "BREVO_API_KEY", "brevo-key"), patch.object(
+        email_service, "BREVO_FROM_EMAIL", "verified@example.com"
+    ), patch.object(email_service.httpx, "Client", return_value=client_context):
+        email_service.send_temporary_password_email(
+            recipient_email="samuel@example.com",
+            recipient_name="Samuel Romero",
+            temporary_password="TempPass2026!",
+        )
+
+    _, kwargs = client.post.call_args
+    payload = kwargs["json"]
+    assert payload["to"] == [{"email": "samuel@example.com", "name": "Samuel Romero"}]
+    assert payload["subject"] == "Acceso temporal a Animal Health"
+    assert "TempPass2026!" in payload["textContent"]
+    assert "TempPass2026!" in payload["htmlContent"]

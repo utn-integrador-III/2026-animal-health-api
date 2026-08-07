@@ -450,6 +450,8 @@ class WalkInClientPet(BaseModel):
     species: str
     sex: str
     breed_primary: str
+    breed_secondary: Optional[str] = None
+    mixed_breed: bool = False
     birth_date: date
     weight_kg: float
     photo_url: Optional[str] = None
@@ -471,8 +473,13 @@ class WalkInConsultationCreate(BaseModel):
     pet_species: Optional[str] = None
     pet_sex: Optional[str] = None
     pet_breed: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    pet_breed_primary: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    pet_breed_secondary: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    pet_mixed_breed: bool = False
     pet_weight_kg: Optional[float] = Field(default=None, gt=0, le=999)
     reason: str = Field(min_length=3, max_length=300)
+    create_client_account: bool = True
+    send_temporary_password: bool = True
 
     @field_validator("client_email")
     @classmethod
@@ -487,7 +494,7 @@ class WalkInConsultationCreate(BaseModel):
     def strip_required_walk_in_text(cls, value: str) -> str:
         return value.strip()
 
-    @field_validator("client_phone", "pet_name", "pet_breed")
+    @field_validator("client_phone", "pet_name", "pet_breed", "pet_breed_primary", "pet_breed_secondary")
     @classmethod
     def strip_optional_walk_in_text(cls, value: Optional[str]) -> Optional[str]:
         return value.strip() if value and value.strip() else value
@@ -523,11 +530,21 @@ class WalkInConsultationCreate(BaseModel):
         ]
         if missing:
             raise ValueError("New walk-in consultations require complete pet information")
+        primary_breed = self.pet_breed_primary or self.pet_breed
+        if not primary_breed:
+            raise ValueError("New walk-in consultations require a primary breed")
+        self.pet_breed = primary_breed
+        self.pet_breed_primary = primary_breed
+        if self.pet_mixed_breed and not self.pet_breed_secondary:
+            raise ValueError("Mixed-breed pets require a secondary breed")
+        if not self.pet_mixed_breed:
+            self.pet_breed_secondary = None
         return self
 
 
 class WalkInConsultationResponse(BaseModel):
     id: str
+    appointment_id: str
     client_id: str
     owner_name: str
     owner_email: str

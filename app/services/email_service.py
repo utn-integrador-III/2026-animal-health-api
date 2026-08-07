@@ -18,6 +18,47 @@ class EmailServiceError(Exception):
     """Raised when the contact email cannot be sent."""
 
 
+def _send_email(payload: dict) -> None:
+    if not BREVO_API_KEY or not BREVO_FROM_EMAIL:
+        raise EmailServiceError("Brevo configuration is incomplete.")
+
+    headers = {
+        "accept": "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json",
+    }
+    try:
+        with httpx.Client(timeout=10) as client:
+            response = client.post(BREVO_EMAIL_URL, headers=headers, json=payload)
+    except httpx.HTTPError as exc:
+        raise EmailServiceError("The email could not be sent.") from exc
+
+    if response.status_code not in {200, 201, 202}:
+        raise EmailServiceError(f"Brevo returned status {response.status_code}.")
+
+
+def send_temporary_password_email(*, recipient_email: str, recipient_name: str, temporary_password: str) -> None:
+    """Sends first-login credentials to a client created during a walk-in visit."""
+    safe_name = escape(recipient_name)
+    safe_password = escape(temporary_password)
+    _send_email({
+        "sender": {"name": BREVO_FROM_NAME, "email": BREVO_FROM_EMAIL},
+        "to": [{"email": recipient_email, "name": recipient_name}],
+        "subject": "Acceso temporal a Animal Health",
+        "htmlContent": (
+            f"<h2>Bienvenido a Animal Health</h2><p>Hola {safe_name},</p>"
+            "<p>Se creó una cuenta durante la consulta de tu mascota.</p>"
+            f"<p><strong>Contraseña temporal:</strong> {safe_password}</p>"
+            "<p>Inicia sesión con tu correo y cambia la contraseña desde tu perfil.</p>"
+        ),
+        "textContent": (
+            f"Hola {recipient_name},\n\nSe creó una cuenta en Animal Health.\n"
+            f"Contraseña temporal: {temporary_password}\n\n"
+            "Inicia sesión con tu correo y cambia la contraseña desde tu perfil."
+        ),
+    })
+
+
 def send_contact_email(
     *,
     name: str,
@@ -27,9 +68,6 @@ def send_contact_email(
     message: str,
 ) -> None:
     """Sends a public contact message to the configured receiver email using Brevo."""
-    if not BREVO_API_KEY or not BREVO_FROM_EMAIL:
-        raise EmailServiceError("Brevo configuration is incomplete.")
-
     phone_value = phone or "Not provided"
     html_content = f"""
     <h2>New Animal Health contact request</h2>
@@ -57,17 +95,4 @@ def send_contact_email(
             f"Message:\n{message}"
         ),
     }
-    headers = {
-        "accept": "application/json",
-        "api-key": BREVO_API_KEY,
-        "content-type": "application/json",
-    }
-
-    try:
-        with httpx.Client(timeout=10) as client:
-            response = client.post(BREVO_EMAIL_URL, headers=headers, json=payload)
-    except httpx.HTTPError as exc:
-        raise EmailServiceError("The contact email could not be sent.") from exc
-
-    if response.status_code not in {200, 201, 202}:
-        raise EmailServiceError(f"Brevo returned status {response.status_code}.")
+    _send_email(payload)
