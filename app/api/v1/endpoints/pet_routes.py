@@ -662,4 +662,98 @@ def delete_allergy(
     return None
 
 
+# ─── Diagnosis Endpoints ──────────────────────────────────────────────────────
+
+@router.get("/{pet_id}/diagnoses", response_model=List[schemas.DiagnosisResponse])
+def list_diagnoses(
+    pet_id: str,
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
+):
+    """Returns all diagnoses for a pet.
+
+    - Clients: can only read their own pet's diagnoses.
+    - Veterinarians: can only read diagnoses for pets they are assigned to.
+    """
+    db = get_firestore_db()
+    if current_user["role"] == UserRole.CLIENT:
+        _owned_pet(db, pet_id, current_user["id"])
+    else:
+        _assigned_pet(db, pet_id, current_user["id"])
+
+    snapshots = (
+        db.collection(Collections.DIAGNOSES)
+        .where("pet_id", "==", pet_id)
+        .get()
+    )
+    return [
+        schemas.DiagnosisResponse(id=snapshot.id, **snapshot.to_dict())
+        for snapshot in snapshots
+    ]
+
+
+@router.post(
+    "/{pet_id}/diagnoses",
+    response_model=schemas.DiagnosisResponse,
+    status_code=201,
+)
+def create_diagnosis(
+    pet_id: str,
+    diagnosis_data: schemas.DiagnosisCreate,
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN)),
+):
+    """Registers a new diagnosis for a pet (Veterinarian only)."""
+    db = get_firestore_db()
+    _assigned_pet(db, pet_id, current_user["id"])
+
+    now_str = _now()
+    document = {
+        "pet_id": pet_id,
+        "diagnosis": diagnosis_data.diagnosis,
+        "presumptive_diagnosis": diagnosis_data.presumptive_diagnosis,
+        "differential_diagnoses": diagnosis_data.differential_diagnoses,
+        "status": diagnosis_data.status or "Presuntivo",
+        "treatment": diagnosis_data.treatment,
+        "notes": diagnosis_data.notes,
+        "consultation_date": diagnosis_data.consultation_date,
+        "reason": diagnosis_data.reason,
+        "symptoms": diagnosis_data.symptoms,
+        "physical_exam": diagnosis_data.physical_exam,
+        "clinical_plan": diagnosis_data.clinical_plan,
+        "owner_instructions": diagnosis_data.owner_instructions,
+        "follow_up": diagnosis_data.follow_up,
+        "registered_by": current_user["role"],
+        "veterinarian_id": current_user["id"],
+        "veterinarian_name": current_user.get("full_name"),
+        "created_at": now_str,
+        "updated_at": now_str,
+    }
+    reference = db.collection(Collections.DIAGNOSES).add(document)
+    return schemas.DiagnosisResponse(id=reference[1].id, **document)
+
+
+@router.get("/{pet_id}/diagnoses/{diagnosis_id}", response_model=schemas.DiagnosisResponse)
+def get_diagnosis(
+    pet_id: str,
+    diagnosis_id: str,
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN)),
+):
+    """Retrieves a specific diagnosis record."""
+    db = get_firestore_db()
+    if current_user["role"] == UserRole.CLIENT:
+        _owned_pet(db, pet_id, current_user["id"])
+    else:
+        _assigned_pet(db, pet_id, current_user["id"])
+
+    reference = db.collection(Collections.DIAGNOSES).document(diagnosis_id)
+    snapshot = reference.get()
+    if not snapshot.exists or snapshot.to_dict().get("pet_id") != pet_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Diagnosis not found",
+        )
+
+    return schemas.DiagnosisResponse(id=snapshot.id, **snapshot.to_dict())
+
+
+
 
