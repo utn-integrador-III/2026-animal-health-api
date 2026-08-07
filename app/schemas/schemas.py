@@ -663,3 +663,73 @@ class AllergyResponse(BaseModel):
     veterinarian_name: Optional[str] = None
     created_at: str
     updated_at: str
+
+
+class DiagnosisCreate(BaseModel):
+    diagnosis: str = Field(min_length=1, max_length=250)
+    consultation_id: Optional[str] = Field(default=None, max_length=100)
+    pet_id: Optional[str] = Field(default=None, max_length=100)
+    clinical_notes: Optional[str] = Field(default=None, max_length=2000)
+    presumptive_diagnosis: Optional[str] = Field(default=None, max_length=250)
+    differential_diagnoses: Optional[str] = Field(default=None, max_length=500)
+    status: Optional[str] = Field(default="Presuntivo", max_length=80)
+    treatment: Optional[str] = Field(default=None, max_length=2000)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    consultation_date: Optional[str] = Field(default=None, max_length=100)
+    reason: Optional[str] = Field(default=None, max_length=1000)
+    symptoms: Optional[str] = Field(default=None, max_length=1000)
+    physical_exam: Optional[str] = Field(default=None, max_length=2000)
+    clinical_plan: Optional[str] = Field(default=None, max_length=2000)
+    owner_instructions: Optional[str] = Field(default=None, max_length=2000)
+    follow_up: Optional[str] = Field(default=None, max_length=1000)
+
+    @field_validator("diagnosis")
+    @classmethod
+    def strip_diagnosis_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class DiagnosisUpdate(BaseModel):
+    diagnosis: Optional[str] = Field(default=None, min_length=1, max_length=250)
+    consultation_id: Optional[str] = Field(default=None, max_length=100)
+    pet_id: Optional[str] = Field(default=None, max_length=100)
+    clinical_notes: Optional[str] = Field(default=None, max_length=2000)
+    presumptive_diagnosis: Optional[str] = Field(default=None, max_length=250)
+    differential_diagnoses: Optional[str] = Field(default=None, max_length=500)
+    status: Optional[str] = Field(default=None, max_length=80)
+    treatment: Optional[str] = Field(default=None, max_length=2000)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    consultation_date: Optional[str] = Field(default=None, max_length=100)
+    reason: Optional[str] = Field(default=None, max_length=1000)
+    symptoms: Optional[str] = Field(default=None, max_length=1000)
+    physical_exam: Optional[str] = Field(default=None, max_length=2000)
+    clinical_plan: Optional[str] = Field(default=None, max_length=2000)
+    owner_instructions: Optional[str] = Field(default=None, max_length=2000)
+    follow_up: Optional[str] = Field(default=None, max_length=1000)
+
+
+class DiagnosisResponse(BaseModel):
+    id: str
+    pet_id: str
+    diagnosis: str
+    consultation_id: Optional[str] = None
+    clinical_notes: Optional[str] = None
+    presumptive_diagnosis: Optional[str] = None
+    differential_diagnoses: Optional[str] = None
+    status: Optional[str] = None
+    treatment: Optional[str] = None
+    notes: Optional[str] = None
+    consultation_date: Optional[str] = None
+    reason: Optional[str] = None
+    symptoms: Optional[str] = None
+    physical_exam: Optional[str] = None
+    clinical_plan: Optional[str] = None
+    owner_instructions: Optional[str] = None
+    follow_up: Optional[str] = None
+    registered_by: Optional[str] = "veterinarian"
+    veterinarian_id: Optional[str] = None
+    veterinarian_name: Optional[str] = None
+    created_at: str
+    updated_at: Optional[str] = None
+
+
