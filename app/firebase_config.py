@@ -8,28 +8,48 @@ from firebase_admin import credentials, storage
 from google.cloud import firestore as google_firestore
 from google.oauth2 import service_account
 
-from .config import FIREBASE_SERVICE_ACCOUNT, FIREBASE_STORAGE_BUCKET
-
+from .config import (
+    FIREBASE_SERVICE_ACCOUNT,
+    FIREBASE_SERVICE_ACCOUNT_JSON,
+    FIREBASE_STORAGE_BUCKET,
+)
 
 _firestore_client = None
 _storage_bucket = None
 
 
-def initialize_firebase_app():
-    """Initializes Firebase Admin SDK with Storage support."""
-    service_account_path = Path(FIREBASE_SERVICE_ACCOUNT)
+def _load_service_account_info():
+    """Loads Firebase credentials from Render secrets or a local JSON file."""
+    if FIREBASE_SERVICE_ACCOUNT_JSON:
+        try:
+            return json.loads(FIREBASE_SERVICE_ACCOUNT_JSON)
+        except ValueError as exc:
+            raise RuntimeError("FIREBASE_SERVICE_ACCOUNT_JSON is invalid") from exc
 
+    service_account_path = Path(FIREBASE_SERVICE_ACCOUNT)
     if not service_account_path.is_file():
         raise RuntimeError(
-            "Firebase service account not found. Set FIREBASE_SERVICE_ACCOUNT "
-            f"or place the file at: {service_account_path}"
+            "Firebase service account not found. Set FIREBASE_SERVICE_ACCOUNT_JSON, "
+            "set FIREBASE_SERVICE_ACCOUNT, or place the file at: "
+            f"{service_account_path}"
         )
 
+    try:
+        return json.loads(service_account_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(
+            f"Firebase service account is invalid: {service_account_path}"
+        ) from exc
+
+
+def initialize_firebase_app():
+    """Initializes Firebase Admin SDK with Storage support."""
     if firebase_admin._apps:
         return firebase_admin.get_app()
 
+    service_account_info = _load_service_account_info()
     return firebase_admin.initialize_app(
-        credentials.Certificate(str(service_account_path)),
+        credentials.Certificate(service_account_info),
         {
             "storageBucket": FIREBASE_STORAGE_BUCKET,
         },
@@ -43,12 +63,8 @@ def get_firestore_db():
     if _firestore_client is not None:
         return _firestore_client
 
-    service_account_path = Path(FIREBASE_SERVICE_ACCOUNT)
-
     try:
-        service_account_info = json.loads(
-            service_account_path.read_text(encoding="utf-8")
-        )
+        service_account_info = _load_service_account_info()
         project_id = service_account_info["project_id"]
 
         initialize_firebase_app()
@@ -67,10 +83,8 @@ def get_firestore_db():
         )
         return _firestore_client
 
-    except (OSError, ValueError, KeyError) as exc:
-        raise RuntimeError(
-            f"Firebase service account is invalid: {service_account_path}"
-        ) from exc
+    except (ValueError, KeyError) as exc:
+        raise RuntimeError("Firebase service account is invalid") from exc
 
 
 def get_storage_bucket():
