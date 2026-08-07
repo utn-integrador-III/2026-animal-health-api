@@ -1,7 +1,7 @@
 """Lab result service for managing laboratory results."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, date  # ← IMPORTAR date
 
 from app.constant import Collections
 from app.firebase_config import get_firestore_db
@@ -23,6 +23,10 @@ class LabResultService:
         """Create a new lab result."""
         try:
             lab_data = data.model_dump()
+            # 🔥 CONVERSIÓN: Si test_date es un objeto date, convertirlo a string ISO
+            if "test_date" in lab_data and isinstance(lab_data["test_date"], date):
+                lab_data["test_date"] = lab_data["test_date"].isoformat()
+            
             lab_data["pet_id"] = pet_id
             lab_data["owner_id"] = owner_id
             lab_data["created_at"] = datetime.now().isoformat()
