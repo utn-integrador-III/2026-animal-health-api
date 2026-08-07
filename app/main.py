@@ -51,6 +51,9 @@ app.include_router(contact_routes.router)
 # External walk-in consultations and diagnoses.
 app.include_router(consultation_routes.router)
 
+# ─── Admin: veterinarian management ────────────────────────────────────────
+app.include_router(vet_admin_routes)
+
 @app.get("/")
 def root():
     return {

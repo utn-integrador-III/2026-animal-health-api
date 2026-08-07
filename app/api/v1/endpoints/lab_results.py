@@ -18,7 +18,7 @@ router = APIRouter(
 async def create_lab_result(
     pet_id: str,
     data: LabResultCreate,
-    current_user: dict = Depends(require_roles([UserRole.VETERINARIAN, UserRole.ADMIN]))
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN, UserRole.ADMIN))
 ):
     """Create a new lab result for a pet (Veterinarian only)."""
     try:
@@ -36,7 +36,7 @@ async def create_lab_result(
 @router.get("/pet/{pet_id}", response_model=dict)
 async def get_lab_results_by_pet(
     pet_id: str,
-    current_user: dict = Depends(require_roles([UserRole.CLIENT, UserRole.VETERINARIAN, UserRole.ADMIN]))
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN, UserRole.ADMIN))
 ):
     """Get all lab results for a pet."""
     try:
@@ -50,7 +50,7 @@ async def get_lab_results_by_pet(
 @router.get("/{result_id}", response_model=LabResultResponse)
 async def get_lab_result(
     result_id: str,
-    current_user: dict = Depends(require_roles([UserRole.CLIENT, UserRole.VETERINARIAN, UserRole.ADMIN]))
+    current_user: dict = Depends(require_roles(UserRole.CLIENT, UserRole.VETERINARIAN, UserRole.ADMIN))
 ):
     """Get a single lab result by ID."""
     try:
@@ -69,7 +69,7 @@ async def get_lab_result(
 async def update_lab_result(
     result_id: str,
     data: LabResultUpdate,
-    current_user: dict = Depends(require_roles([UserRole.VETERINARIAN, UserRole.ADMIN]))
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN, UserRole.ADMIN))
 ):
     """Update a lab result (Veterinarian only)."""
     try:
@@ -87,7 +87,7 @@ async def update_lab_result(
 @router.delete("/{result_id}", status_code=204)
 async def delete_lab_result(
     result_id: str,
-    current_user: dict = Depends(require_roles([UserRole.VETERINARIAN, UserRole.ADMIN]))
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN, UserRole.ADMIN))
 ):
     """Delete a lab result (Veterinarian only)."""
     try:
