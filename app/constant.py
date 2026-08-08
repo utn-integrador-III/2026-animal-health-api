@@ -4,13 +4,21 @@ class Collections:
     USERS = "users"
     PETS = "pets"
     APPOINTMENTS = "appointments"
+    VACCINES = "vaccines"
+    MEDICAL_RECORDS = "medical_records"
+    MEDICATIONS = "medications"
+    CONSULTATIONS = "consultations"
+    DIAGNOSES = "diagnoses"
+    NOTIFICATIONS = "notifications"
+    LAB_RESULTS = "lab_results"
+    ALLERGIES = "allergies"
 
 
 class UserRole:
     CLIENT = "client"
     VETERINARIAN = "veterinarian"
     ADMIN        = "admin"
-    AUTHENTICATED = (CLIENT, VETERINARIAN)
+    AUTHENTICATED = (CLIENT, VETERINARIAN,ADMIN)
 
 
 class PetSpecies:
@@ -39,6 +47,12 @@ class ApiPrefix:
     AUTH = "/api/auth"
     PETS = "/api/pets"
     CLIENTS = "/api/clients"
+    APPOINTMENTS = "/api/appointments"
+    CONTACT = "/api/contact"
+    CONSULTATIONS = "/api/consultations"
+    NOTIFICATIONS = "/api/notifications"
+    LAB_RESULTS = "/api/lab-results"  
+    ADMIN = "/api/admin"
 
 
 class AuthToken:

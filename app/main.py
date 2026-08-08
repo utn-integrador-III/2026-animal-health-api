@@ -2,11 +2,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import ALLOWED_ORIGINS
-from .api.v1.endpoints import auth_routes, pet_routes
+from .api.v1.endpoints import (
+    appointment_routes,
+    auth_routes,
+    pet_routes,
+    notification_routes,
+    lab_results,
+    vet_admin_routes,
+    contact_routes,
+    consultation_routes,
+)
+from .utils.scheduler import start_scheduler
 
 app = FastAPI(
     title="Animal Health Pet Profiles API",
-    description="Backend for the Animal Health Management System — UTN Integrador III",
+    description="Backend for the Animal Health Management System” UTN Integrador III",
     version="1.0.0",
 )
 
@@ -17,16 +27,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ─── Auth ────────────────────────────────────────────────────────────────────
+# ─── Iniciar scheduler de notificaciones ────────────────────────────────────
+scheduler = start_scheduler()
 # POST /api/auth/register, POST /api/auth/login,
 # POST /api/auth/logout, GET /api/auth/profile, PUT /api/auth/profile
 app.include_router(auth_routes.router)
 
-
-# ─── Pets (CRUD + history) ───────────────────────────────────────────────────
 # POST/GET/PUT/DELETE /api/pets, GET /api/pets/{id}/history
 app.include_router(pet_routes.router)
+
+# ─── Appointments ──────────────────────────────────────────────────────────
+app.include_router(appointment_routes.router)  
+
+# ─── Notifications ──────────────────────────────────────────────────────────
+app.include_router(notification_routes.router)
+
+# ─── Lab Results ──────────────────────────────────────────────────────────
+app.include_router(lab_results.router)
+
+# Public contact form.
+app.include_router(contact_routes.router)
+
+# External walk-in consultations and diagnoses.
+app.include_router(consultation_routes.router)
+
+# ─── Admin: veterinarian management ────────────────────────────────────────
+app.include_router(vet_admin_routes)
 
 @app.get("/")
 def root():
@@ -36,6 +62,17 @@ def root():
         "version": "1.0.0",
     }
 
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+# ─── Shutdown event ─────────────────────────────────────────────────────────
+@app.on_event("shutdown")
+def shutdown_scheduler():
+    """Shutdown the scheduler when the app stops."""
+    if scheduler and scheduler.running:
+        scheduler.shutdown()
+        print("Scheduler shut down")

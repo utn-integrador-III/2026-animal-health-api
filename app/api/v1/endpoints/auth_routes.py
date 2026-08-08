@@ -184,6 +184,27 @@ def update_profile(
     return _user_response(current_user["id"], updated)
 
 
+@router.put("/profile/password", status_code=204)
+def update_password(
+    password_data: schemas.UserPasswordUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Updates the authenticated user's password after verifying the current one."""
+    if not verify_password(
+        password_data.current_password,
+        current_user.get("hashed_password", ""),
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect",
+        )
+
+    db = get_firestore_db()
+    user_ref = db.collection(Collections.USERS).document(current_user["id"])
+    user_ref.update({"hashed_password": hash_password(password_data.new_password)})
+    return None
+
+
 @router.post("/profile/photo", response_model=schemas.UserResponse)
 async def upload_profile_photo(
     photo: UploadFile = File(...),
