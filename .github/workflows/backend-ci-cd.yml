@@ -14,7 +14,7 @@ on:
       - main
 
 jobs:
-  test-build:
+  unit-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -35,16 +35,43 @@ jobs:
       - name: Run unit tests
         run: pytest tests/unit -v
 
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
       - name: Run integration tests
         run: pytest tests/integration -v
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: integration-tests
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Build Docker image
         run: docker build -t animal-health-api:${{ github.sha }} .
 
   deploy-render:
     runs-on: ubuntu-latest
-    needs: test-build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/main')
+    needs: docker-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
 
     steps:
       - name: Trigger Render deploy
