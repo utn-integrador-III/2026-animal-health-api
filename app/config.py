@@ -32,6 +32,7 @@ FIREBASE_SERVICE_ACCOUNT = os.getenv(
     "FIREBASE_SERVICE_ACCOUNT",
     str(BASE_DIR / "serviceAccountKey.json"),
 )
+FIREBASE_SERVICE_ACCOUNT_JSON = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "")
 
 ALLOWED_ORIGINS = [
     origin.strip()
