@@ -1,4 +1,4 @@
-"""Constants required by the pet profile and pet registration stories."""
+﻿"""Constants required by the pet profile and pet registration stories."""
 
 class Collections:
     USERS = "users"
@@ -12,6 +12,7 @@ class Collections:
     NOTIFICATIONS = "notifications"
     LAB_RESULTS = "lab_results"
     ALLERGIES = "allergies"
+    AI_RECOMMENDATIONS = "ai_recommendations"
 
 
 class UserRole:
@@ -53,6 +54,7 @@ class ApiPrefix:
     NOTIFICATIONS = "/api/notifications"
     LAB_RESULTS = "/api/lab-results"  
     ADMIN = "/api/admin"
+    AI = "/api/ai"
 
 
 class AuthToken:
