@@ -1,4 +1,4 @@
-"""Schemas required by DB-US-02 and FE-US-02."""
+﻿"""Schemas required by DB-US-02 and FE-US-02."""
 
 from datetime import date, time
 import re
@@ -382,7 +382,7 @@ class VaccineCreate(BaseModel):
     scheduled_date: date                                       # application date
     expiration_date: Optional[date] = None
     next_dose: Optional[date] = None
-    administration_route: str = Field(default="SubcutÃ¡nea", max_length=80)
+    administration_route: str = Field(default="SubcutÃƒÂ¡nea", max_length=80)
     dose: str = Field(default="1", max_length=20)
     unit: str = Field(default="dosis", max_length=30)
     raw_status: str = Field(default="Aplicada correctamente", max_length=80)
@@ -731,5 +731,67 @@ class DiagnosisResponse(BaseModel):
     veterinarian_name: Optional[str] = None
     created_at: str
     updated_at: Optional[str] = None
+class BreedRiskAlert(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(min_length=1, max_length=1000)
+    severity: str = Field(default="informational", max_length=80)
+    recommendation: Optional[str] = Field(default=None, max_length=1000)
 
+
+class BreedRiskRecommendationVersion(BaseModel):
+    recommendation_id: str
+    alerts: List[BreedRiskAlert]
+    preventive_recommendations: List[str]
+    non_diagnostic_warning: str
+    generated_by: str = "gemini"
+    generated_at: Optional[str] = None
+
+
+class BreedRiskAlertResponse(BaseModel):
+    pet_id: str
+    name: str
+    species: str
+    breed_primary: str
+    breed_secondary: Optional[str] = None
+    birth_date: date
+    age_years: int
+    age_months: int
+    age_days: int
+    alerts: List[BreedRiskAlert]
+    preventive_recommendations: List[str]
+    non_diagnostic_warning: str
+    generated_by: str = "gemini"
+    generated_at: Optional[str] = None
+    recommendation_id: Optional[str] = None
+    history: List[BreedRiskRecommendationVersion] = Field(default_factory=list)
+
+
+class PetCareRecommendationVersion(BaseModel):
+    recommendation_id: str
+    nutrition_recommendations: List[str]
+    activity_recommendations: List[str]
+    preventive_recommendations: List[str]
+    non_diagnostic_warning: str
+    generated_by: str = "gemini"
+    generated_at: Optional[str] = None
+
+
+class PetCareRecommendationResponse(BaseModel):
+    pet_id: str
+    name: str
+    species: str
+    breed_primary: str
+    breed_secondary: Optional[str] = None
+    birth_date: date
+    age_years: int
+    age_months: int
+    age_days: int
+    nutrition_recommendations: List[str]
+    activity_recommendations: List[str]
+    preventive_recommendations: List[str]
+    non_diagnostic_warning: str
+    generated_by: str = "gemini"
+    generated_at: Optional[str] = None
+    recommendation_id: Optional[str] = None
+    history: List[PetCareRecommendationVersion] = Field(default_factory=list)
 
