@@ -1,7 +1,8 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from fastapi import HTTPException
+from google.api_core.exceptions import AlreadyExists
 
 from app import schemas
 from app.auth import hash_password, verify_password
@@ -36,11 +37,12 @@ class FakeDocument:
 
     def create(self, data):
         if self.id in self.collection.data:
-            raise RuntimeError("Document already exists")
+            raise AlreadyExists("Document already exists")
         self.collection.data[self.id] = dict(data)
 
     def update(self, data):
-        self.collection.data[self.id].update(data)
+        if self.id in self.collection.data:
+            self.collection.data[self.id].update(data)
 
     def delete(self):
         self.collection.data.pop(self.id, None)
@@ -115,14 +117,16 @@ def pet_payload():
         birth_date="2024-01-01",
         species="Dog",
         sex="Female",
-        breed_primary="Mixed",
+        breed_primary="Poodle",
+        breed_secondary="Golden Retriever",
+        mixed_breed=True,
         weight_kg=8.5,
     )
 
 
-def registration_payload():
+def registration_payload(email="owner@example.com"):
     return schemas.UserRegister(
-        email="owner@example.com",
+        email=email,
         password="password123",
         full_name="Test Owner",
         phone="8888-8888",
@@ -144,6 +148,29 @@ class RegistrationTests(unittest.TestCase):
         pet = db.collection(Collections.PETS).data[pet_id]
         self.assertEqual(user["role"], UserRole.CLIENT)
         self.assertEqual(pet["owner_id"], user_id)
+        self.assertEqual(pet["breed_secondary"], "Golden Retriever")
+        self.assertTrue(pet["mixed_breed"])
+
+    def test_registration_rejects_duplicate_email_query(self):
+        db = FakeFirestore()
+        db.collection(Collections.USERS).data["existing-user"] = {
+            "email": "owner@example.com",
+        }
+        with self.assertRaises(HTTPException) as ctx:
+            register_client_with_pet(db, registration_payload("owner@example.com"))
+        self.assertEqual(ctx.exception.status_code, 409)
+        self.assertEqual(ctx.exception.detail, "Email address is already registered")
+
+    def test_registration_handles_already_exists_on_commit(self):
+        db = FakeFirestore()
+        mock_batch = MagicMock()
+        mock_batch.commit.side_effect = AlreadyExists("Conflict")
+
+        with patch.object(db, "batch", return_value=mock_batch):
+            with self.assertRaises(HTTPException) as ctx:
+                register_client_with_pet(db, registration_payload())
+            self.assertEqual(ctx.exception.status_code, 409)
+            self.assertEqual(ctx.exception.detail, "Email address is already registered")
 
     def test_login_rejects_invalid_password(self):
         db = FakeFirestore()
