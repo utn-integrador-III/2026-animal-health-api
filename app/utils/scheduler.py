@@ -35,6 +35,18 @@ def check_medication_notifications():
         logger.error("Error in medication check: %s", e)
 
 
+def run_daily_backup():
+    """Task to run daily database backup and purge backups older than 30 days (off-peak 03:00 AM)."""
+    logger.info("Running daily database backup check at %s", datetime.now())
+    try:
+        from app.services.backup_service import BackupService
+        service = BackupService()
+        result = service.create_backup(purge_retention_days=30)
+        logger.info("Daily database backup completed: %s", result)
+    except Exception as e:
+        logger.error("Error running daily database backup: %s", e)
+
+
 def start_scheduler():
     """Start the background scheduler for daily tasks."""
     scheduler = BackgroundScheduler()
@@ -53,7 +65,14 @@ def start_scheduler():
         replace_existing=True
     )
 
+    scheduler.add_job(
+        run_daily_backup,
+        trigger=CronTrigger(hour=3, minute=0),
+        id="daily_database_backup",
+        replace_existing=True
+    )
+
     scheduler.start()
-    logger.info("Scheduler started - vaccine notifications daily, medication checks hourly.")
+    logger.info("Scheduler started - vaccine notifications daily, medication checks hourly, backups daily at 03:00 AM.")
 
     return scheduler
