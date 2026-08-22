@@ -1,4 +1,4 @@
-"""Central environment-driven backend configuration."""
+﻿"""Central environment-driven backend configuration."""
 
 import os
 import warnings
@@ -32,6 +32,7 @@ FIREBASE_SERVICE_ACCOUNT = os.getenv(
     "FIREBASE_SERVICE_ACCOUNT",
     str(BASE_DIR / "serviceAccountKey.json"),
 )
+FIREBASE_SERVICE_ACCOUNT_JSON = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "")
 
 ALLOWED_ORIGINS = [
     origin.strip()
@@ -51,3 +52,12 @@ BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 BREVO_FROM_EMAIL = os.getenv("BREVO_FROM_EMAIL", "")
 BREVO_FROM_NAME = os.getenv("BREVO_FROM_NAME", "Animal Health")
 CONTACT_RECEIVER_EMAIL = os.getenv("CONTACT_RECEIVER_EMAIL", "ediloma21@gmail.com")
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").strip().lower()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+GEMINI_FALLBACK_MODELS = [
+    model.strip()
+    for model in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-flash-latest,gemini-flash-lite-latest").split(",")
+    if model.strip()
+]
+
