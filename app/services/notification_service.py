@@ -1,4 +1,4 @@
-"""Notification service for managing user notifications."""
+﻿"""Notification service for managing user notifications."""
 
 import logging
 from datetime import date, datetime
@@ -34,7 +34,6 @@ class NotificationService:
         """Check vaccines due for notification (7 days or less to expiration)."""
         try:
             logger.info("Checking vaccines due for notification...")
-            print("🔍 Iniciando revisión de vacunas...")
 
             vaccines_ref = self._get_vaccines_collection()
             vaccines_query = vaccines_ref.where("notification_sent", "==", False)
@@ -44,20 +43,14 @@ class NotificationService:
             notifications_created = 0
             errors = []
 
-            # Contar cuántas vacunas hay
-            vaccine_list = list(vaccines_snapshot)
-            print(f"🔍 Vacunas encontradas: {len(vaccine_list)}")
-
-            for vaccine_doc in vaccine_list:
+            for vaccine_doc in vaccines_snapshot:
                 vaccine_data = vaccine_doc.to_dict()
                 vaccine_data["id"] = vaccine_doc.id
-                print(f"🔍 Procesando vacuna: {vaccine_doc.id}")
 
                 try:
                     expiration_date = vaccine_data.get("expiration_date")
                     if not expiration_date:
                         logger.warning(f"Vaccine {vaccine_doc.id} has no expiration date")
-                        print(f"⚠️  Vacuna {vaccine_doc.id} sin fecha de expiración")
                         continue
 
                     if isinstance(expiration_date, str):
@@ -66,43 +59,28 @@ class NotificationService:
                         pass
                     else:
                         logger.warning(f"Vaccine {vaccine_doc.id} has invalid expiration date format")
-                        print(f"⚠️  Vacuna {vaccine_doc.id} formato de fecha inválido")
                         continue
 
                     expiration_date = expiration_date.replace(hour=0, minute=0, second=0, microsecond=0)
                     days_until_expiration = (expiration_date - today).days
-                    print(f"🔍 Días hasta expirar: {days_until_expiration}")
 
                     if 0 <= days_until_expiration <= 7:
-                        print(f"✅ Vacuna {vaccine_doc.id} dentro del rango, creando notificación...")
-                        # Crear notificación
-                        try:
-                            await self._create_vaccine_notification(
-                                vaccine_data=vaccine_data,
-                                days_until_expiration=days_until_expiration
-                            )
-                            # Solo marcar como notificada si la notificación se creó con éxito
-                            vaccine_doc.reference.update({
-                                "notification_sent": True,
-                                "notification_date": datetime.now().isoformat()
-                            })
-                            notifications_created += 1
-                            logger.info(f"Notification created for vaccine {vaccine_doc.id}")
-                            print(f"✅ Notificación creada para vacuna {vaccine_doc.id}")
-                        except Exception as e:
-                            # Si falla la creación, no marcar como notificada para poder reintentar
-                            error_msg = f"Error al crear notificación para vacuna {vaccine_doc.id}: {str(e)}"
-                            logger.error(error_msg)
-                            print(f"❌ {error_msg}")
-                            errors.append(error_msg)
-                    else:
-                        print(f"ℹ️  Vacuna {vaccine_doc.id} no está en rango (días: {days_until_expiration})")
+                        await self._create_vaccine_notification(
+                            vaccine_data=vaccine_data,
+                            days_until_expiration=days_until_expiration
+                        )
+
+                        vaccine_doc.reference.update({
+                            "notification_sent": True,
+                            "notification_date": datetime.now().isoformat()
+                        })
+
+                        notifications_created += 1
+                        logger.info(f"Notification created for vaccine {vaccine_doc.id}")
 
                 except Exception as e:
-                    error_msg = f"Error procesando vacuna {vaccine_doc.id}: {str(e)}"
-                    logger.error(error_msg)
-                    print(f"❌ {error_msg}")
-                    errors.append(error_msg)
+                    errors.append(f"Vaccine {vaccine_doc.id}: {str(e)}")
+                    logger.error(f"Error processing vaccine {vaccine_doc.id}: {e}")
 
             return {
                 "success": True,
@@ -112,7 +90,6 @@ class NotificationService:
 
         except Exception as e:
             logger.error(f"Error checking vaccines: {e}")
-            print(f"❌ Error general en check_vaccines_due_for_notification: {e}")
             return {"success": False, "error": str(e), "notifications_created": 0}
 
     async def check_medications_due_for_notification(self) -> dict:
@@ -198,40 +175,22 @@ class NotificationService:
 
     async def _create_vaccine_notification(self, vaccine_data: dict, days_until_expiration: int):
         """Create a notification for a vaccine about to expire."""
-        print(f"🔍 _create_vaccine_notification llamado para vacuna: {vaccine_data.get('id')}")
         try:
             pet_id = vaccine_data.get("pet_id")
             if not pet_id:
-                error_msg = f"Vaccine {vaccine_data.get('id')} has no pet_id"
-                logger.warning(error_msg)
-                print(f"❌ {error_msg}")
-                raise ValueError(error_msg)
+                logger.warning(f"Vaccine {vaccine_data.get('id')} has no pet_id")
+                return
 
-            print(f"🔍 Buscando mascota con pet_id: {pet_id}")
             pet_doc = self._get_pets_collection().document(pet_id).get()
             if not pet_doc.exists:
-                error_msg = f"Pet {pet_id} not found"
-                logger.warning(error_msg)
-                print(f"❌ {error_msg}")
-                raise ValueError(error_msg)
+                logger.warning(f"Pet {pet_id} not found")
+                return
 
             pet_data = pet_doc.to_dict()
             owner_id = pet_data.get("owner_id")
             if not owner_id:
-                error_msg = f"Pet {pet_id} has no owner_id"
-                logger.warning(error_msg)
-                print(f"❌ {error_msg}")
-                raise ValueError(error_msg)
-
-            print(f"🔍 Owner encontrado: {owner_id}")
-
-            # Verificar que el dueño exista en users (opcional pero recomendado)
-            user_doc = self._get_users_collection().document(owner_id).get()
-            if not user_doc.exists:
-                error_msg = f"User {owner_id} not found"
-                logger.warning(error_msg)
-                print(f"❌ {error_msg}")
-                raise ValueError(error_msg)
+                logger.warning(f"Pet {pet_id} has no owner_id")
+                return
 
             pet_name = pet_data.get("name", "Mascota")
             vaccine_name = vaccine_data.get("name", "Vacuna")
@@ -265,14 +224,10 @@ class NotificationService:
                 "created_at": datetime.now().isoformat()
             }
 
-            print(f"🔍 Guardando notificación: {notification_data}")
             self._get_notifications_collection().add(notification_data)
-            print(f"✅ Notificación guardada exitosamente para la vacuna {vaccine_data.get('id')}")
 
         except Exception as e:
-            error_msg = f"Error en _create_vaccine_notification: {str(e)}"
-            logger.error(error_msg)
-            print(f"❌ {error_msg}")
+            logger.error(f"Error creating vaccine notification: {e}")
             raise
 
     async def get_user_notifications(self, user_id: str, only_unread: bool = False, limit: int = 50, offset: int = 0) -> dict:
