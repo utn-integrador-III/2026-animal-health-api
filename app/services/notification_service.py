@@ -1,4 +1,4 @@
-"""Notification service for managing user notifications."""
+﻿"""Notification service for managing user notifications."""
 
 import logging
 from datetime import date, datetime
