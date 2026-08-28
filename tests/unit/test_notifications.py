@@ -105,6 +105,12 @@ class FakeCollection:
     def where(self, field, op, value):
         return FakeQuery(self).where(field, op, value)
 
+    def stream(self):
+        return FakeQuery(self).stream()
+
+    def get(self):
+        return FakeQuery(self).get()
+
     def add(self, data):
         doc_id = f"gen-{self.next_id}"
         self.next_id += 1

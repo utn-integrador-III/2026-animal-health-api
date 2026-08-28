@@ -1,4 +1,4 @@
-﻿"""Notification service for managing user notifications."""
+"""Notification service for managing user notifications."""
 
 import logging
 from datetime import date, datetime
@@ -31,13 +31,12 @@ class NotificationService:
         return self.db.collection(Collections.USERS)
 
     async def check_vaccines_due_for_notification(self) -> dict:
-        """Check vaccines due for notification (7 days or less to expiration)."""
+        """Check vaccines due for notification (7 days or less to expiration or next dose)."""
         try:
             logger.info("Checking vaccines due for notification...")
 
             vaccines_ref = self._get_vaccines_collection()
-            vaccines_query = vaccines_ref.where("notification_sent", "==", False)
-            vaccines_snapshot = vaccines_query.stream()
+            vaccines_snapshot = vaccines_ref.stream()
 
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             notifications_created = 0
@@ -47,22 +46,27 @@ class NotificationService:
                 vaccine_data = vaccine_doc.to_dict()
                 vaccine_data["id"] = vaccine_doc.id
 
+                # Skip if notification already sent
+                if vaccine_data.get("notification_sent") is True:
+                    continue
+
                 try:
-                    expiration_date = vaccine_data.get("expiration_date")
-                    if not expiration_date:
-                        logger.warning(f"Vaccine {vaccine_doc.id} has no expiration date")
+                    target_date_raw = vaccine_data.get("expiration_date") or vaccine_data.get("next_dose")
+                    if not target_date_raw:
                         continue
 
-                    if isinstance(expiration_date, str):
-                        expiration_date = datetime.fromisoformat(expiration_date)
-                    elif isinstance(expiration_date, datetime):
-                        pass
+                    if isinstance(target_date_raw, str):
+                        target_date = datetime.fromisoformat(target_date_raw[:10])
+                    elif isinstance(target_date_raw, datetime):
+                        target_date = target_date_raw
+                    elif isinstance(target_date_raw, date):
+                        target_date = datetime.combine(target_date_raw, datetime.min.time())
                     else:
-                        logger.warning(f"Vaccine {vaccine_doc.id} has invalid expiration date format")
+                        logger.warning(f"Vaccine {vaccine_doc.id} has invalid date format")
                         continue
 
-                    expiration_date = expiration_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                    days_until_expiration = (expiration_date - today).days
+                    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    days_until_expiration = (target_date - today).days
 
                     if 0 <= days_until_expiration <= 7:
                         await self._create_vaccine_notification(
@@ -92,8 +96,12 @@ class NotificationService:
             logger.error(f"Error checking vaccines: {e}")
             return {"success": False, "error": str(e), "notifications_created": 0}
 
-    async def check_medications_due_for_notification(self) -> dict:
-        """Check active medications and create notifications for those due today."""
+    async def check_medications_due_for_notification(self, check_time: bool = True) -> dict:
+        """Check active medications and create notifications for those due today.
+        
+        If administration_time is set, notification triggers once the current time
+        reaches or passes that time, unless already marked as taken today.
+        """
         try:
             logger.info("Checking medications due for notification...")
             db = get_firestore_db()
@@ -102,6 +110,8 @@ class NotificationService:
 
             today = date.today()
             today_str = today.isoformat()
+            now = datetime.now()
+            current_time_str = now.strftime("%H:%M")
             notifications_created = 0
             errors = []
 
@@ -120,6 +130,18 @@ class NotificationService:
                     end_date = date.fromisoformat(end_date_str)
 
                     if start_date <= today <= end_date:
+                        # Check if medication was already marked as taken today
+                        checked_dates = med_data.get("checked_dates", [])
+                        if today_str in checked_dates:
+                            continue
+
+                        # Check administration time if present
+                        med_time = med_data.get("administration_time")
+                        if check_time and med_time:
+                            med_time_clean = str(med_time)[:5]
+                            if current_time_str < med_time_clean:
+                                continue
+
                         pet_id = med_data.get("pet_id")
                         pet_doc = db.collection(Collections.PETS).document(pet_id).get()
                         if not pet_doc.exists:
@@ -153,7 +175,7 @@ class NotificationService:
                                 "read": False,
                                 "urgency": "info",
                                 "scheduled_date": today_str,
-                                "link": f"/pets/{pet_id}/medications",
+                                "link": f"/client/medications?petId={pet_id}",
                                 "created_at": datetime.now().isoformat()
                             }
                             db.collection(Collections.NOTIFICATIONS).add(notification_data)
@@ -220,7 +242,7 @@ class NotificationService:
                 "urgency": urgency,
                 "expiration_date": str(expiration_date) if expiration_date else None,
                 "days_until": days_until_expiration,
-                "link": f"/pets/{pet_id}/vaccines",
+                "link": f"/client/vaccines?petId={pet_id}",
                 "created_at": datetime.now().isoformat()
             }
 
