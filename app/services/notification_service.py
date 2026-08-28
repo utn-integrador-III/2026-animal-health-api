@@ -154,13 +154,13 @@ class NotificationService:
                             continue
 
                         # Check if a notification for this medication was already created for today
-                        notif_query = db.collection(Collections.NOTIFICATIONS) \
-                            .where("user_id", "==", owner_id) \
-                            .where("medication_id", "==", med_doc.id) \
-                            .where("scheduled_date", "==", today_str) \
-                            .get()
+                        user_notifs = db.collection(Collections.NOTIFICATIONS).where("user_id", "==", owner_id).stream()
+                        already_created = any(
+                            n.to_dict().get("medication_id") == med_doc.id and n.to_dict().get("scheduled_date") == today_str
+                            for n in user_notifs
+                        )
 
-                        if len(notif_query) == 0:
+                        if not already_created:
                             notification_data = {
                                 "user_id": owner_id,
                                 "pet_id": pet_id,
@@ -257,36 +257,34 @@ class NotificationService:
         try:
             notifications_ref = self._get_notifications_collection()
             query = notifications_ref.where("user_id", "==", user_id)
-
-            if only_unread:
-                query = query.where("read", "==", False)
-
-            query = query.order_by("created_at", direction="DESCENDING")
-            query = query.limit(limit).offset(offset)
-
             snapshot = query.stream()
-            notifications = []
+
+            all_notifications = []
             unread_count = 0
 
             for doc in snapshot:
                 data = doc.to_dict()
                 data["id"] = doc.id
-                notifications.append(data)
-                if not data.get("read", True):
+                is_read = data.get("read", False)
+                if not is_read:
                     unread_count += 1
+                if only_unread and is_read:
+                    continue
+                all_notifications.append(data)
 
-            total_query = notifications_ref.where("user_id", "==", user_id)
-            if only_unread:
-                total_query = total_query.where("read", "==", False)
-            total_count = len(list(total_query.stream()))
+            # Sort descending by created_at / remind_at
+            all_notifications.sort(
+                key=lambda x: str(x.get("created_at") or x.get("remind_at") or ""),
+                reverse=True
+            )
 
-            unread_query = notifications_ref.where("user_id", "==", user_id).where("read", "==", False)
-            total_unread = len(list(unread_query.stream()))
+            total_count = len(all_notifications)
+            paginated = all_notifications[offset : offset + limit]
 
             return {
-                "notifications": notifications,
+                "notifications": paginated,
                 "total": total_count,
-                "unread_count": total_unread,
+                "unread_count": unread_count,
                 "limit": limit,
                 "offset": offset
             }
@@ -323,16 +321,18 @@ class NotificationService:
         """Mark all notifications for a user as read."""
         try:
             notifications_ref = self._get_notifications_collection()
-            query = notifications_ref.where("user_id", "==", user_id).where("read", "==", False)
+            query = notifications_ref.where("user_id", "==", user_id)
             snapshot = query.stream()
 
             count = 0
             for doc in snapshot:
-                doc.reference.update({
-                    "read": True,
-                    "read_at": datetime.now().isoformat()
-                })
-                count += 1
+                data = doc.to_dict()
+                if not data.get("read", False):
+                    doc.reference.update({
+                        "read": True,
+                        "read_at": datetime.now().isoformat()
+                    })
+                    count += 1
 
             return {"success": True, "marked_count": count}
 

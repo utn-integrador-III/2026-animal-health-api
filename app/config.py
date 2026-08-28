@@ -1,4 +1,4 @@
-﻿"""Central environment-driven backend configuration."""
+"""Central environment-driven backend configuration."""
 
 import os
 import warnings
@@ -54,10 +54,10 @@ BREVO_FROM_NAME = os.getenv("BREVO_FROM_NAME", "Animal Health")
 CONTACT_RECEIVER_EMAIL = os.getenv("CONTACT_RECEIVER_EMAIL", "ediloma21@gmail.com")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").strip().lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_FALLBACK_MODELS = [
     model.strip()
-    for model in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-flash-latest,gemini-flash-lite-latest").split(",")
+    for model in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-2.0-flash,gemini-1.5-flash").split(",")
     if model.strip()
 ]
 
