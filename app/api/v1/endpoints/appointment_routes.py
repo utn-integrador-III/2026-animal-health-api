@@ -201,6 +201,100 @@ def _slot_taken(
     return bool(required_slots & _reserved_slots(db, veterinarian_id, appointment_date, exclude_id))
 
 
+
+def _appointment_datetime(data: dict) -> Optional[datetime]:
+    try:
+        appointment_date = date.fromisoformat(str(data.get("appointment_date")))
+        appointment_time = time.fromisoformat(
+            _normalize_time(str(data.get("appointment_time", "00:00")))
+        )
+        return datetime.combine(appointment_date, appointment_time)
+    except (TypeError, ValueError):
+        return None
+
+
+def _appointment_is_past(data: dict) -> bool:
+    appointment_at = _appointment_datetime(data)
+    return bool(appointment_at and appointment_at + timedelta(hours=24) <= datetime.now())
+
+
+def _query_has_records(db, collection_name: str, field_name: str, value: str) -> bool:
+    try:
+        return bool(
+            db.collection(collection_name)
+            .where(field_name, "==", value)
+            .limit(1)
+            .get()
+        )
+    except Exception:
+        return False
+
+
+def _has_veterinary_attention(db, appointment_id: str, data: dict) -> bool:
+    direct_fields = (
+        "clinical_observation",
+        "veterinarian_observation",
+        "completed_at",
+        "diagnosis",
+        "diagnoses",
+        "clinical_notes",
+        "clinicalNotes",
+        "treatment",
+        "treatments",
+        "medications",
+        "vaccines",
+        "lab_results",
+        "labResults",
+        "allergies",
+        "medical_record",
+        "medicalRecord",
+    )
+    if any(str(data.get(field) or "").strip() for field in direct_fields):
+        return True
+
+    related_collections = tuple(
+        collection_name
+        for collection_name in (
+            getattr(Collections, "MEDICAL_RECORDS", None),
+            getattr(Collections, "MEDICATIONS", None),
+            getattr(Collections, "VACCINES", None),
+            getattr(Collections, "LAB_RESULTS", None),
+            getattr(Collections, "ALLERGIES", None),
+            getattr(Collections, "CONSULTATIONS", None),
+            getattr(Collections, "DIAGNOSES", None),
+        )
+        if collection_name
+    )
+    return any(
+        _query_has_records(db, collection_name, "appointment_id", appointment_id)
+        for collection_name in related_collections
+    )
+
+
+def _sync_past_appointment_status(db, snapshot):
+    data = snapshot.to_dict()
+    if data.get("status") != schemas.AppointmentStatus.SCHEDULED:
+        return data
+    if not _appointment_is_past(data):
+        return data
+
+    now = _now()
+    next_status = (
+        schemas.AppointmentStatus.COMPLETED
+        if _has_veterinary_attention(db, snapshot.id, data)
+        else schemas.AppointmentStatus.NO_SHOW
+    )
+    updates = {"status": next_status, "updated_at": now}
+    if next_status == schemas.AppointmentStatus.COMPLETED and not data.get("completed_at"):
+        updates["completed_at"] = now
+    if next_status == schemas.AppointmentStatus.NO_SHOW:
+        updates["no_show_at"] = now
+
+    reference = getattr(snapshot, "reference", None)
+    if reference is None:
+        reference = db.collection(Collections.APPOINTMENTS).document(snapshot.id)
+    reference.update(updates)
+    return {**data, **updates}
 def _appointment_for_client(db, appointment_id: str, owner_id: str):
     reference = db.collection(Collections.APPOINTMENTS).document(appointment_id)
     snapshot = reference.get()
@@ -286,7 +380,8 @@ def list_appointments(
     snapshots = query.get()
     responses = []
     for snapshot in snapshots:
-        data = _hydrate_pet_summary(db, snapshot.to_dict())
+        data = _sync_past_appointment_status(db, snapshot)
+        data = _hydrate_pet_summary(db, data)
         data.setdefault("last_visit", _last_completed_visit(db, data["pet_id"], snapshot.id))
         responses.append(_appointment_response(snapshot.id, data))
     return responses
@@ -489,6 +584,35 @@ def complete_appointment(
     return _appointment_response(updated.id, updated.to_dict())
 
 
+@router.post("/{appointment_id}/no-show", response_model=schemas.AppointmentResponse)
+def mark_appointment_no_show(
+    appointment_id: str,
+    current_user: dict = Depends(require_roles(UserRole.VETERINARIAN)),
+):
+    db = get_firestore_db()
+    reference, snapshot = _appointment_for_veterinarian(db, appointment_id, current_user["id"])
+    data = snapshot.to_dict()
+
+    if data.get("status") != schemas.AppointmentStatus.SCHEDULED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only scheduled appointments can be marked as no-show",
+        )
+    if _has_veterinary_attention(db, appointment_id, data):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Appointments with clinical records must be completed instead of marked as no-show",
+        )
+
+    now = _now()
+    updates = {
+        "status": schemas.AppointmentStatus.NO_SHOW,
+        "no_show_at": now,
+        "updated_at": now,
+    }
+    reference.update(updates)
+    return _appointment_response(appointment_id, {**data, **updates})
+
 @router.post("/{appointment_id}/cancel", response_model=schemas.AppointmentResponse)
 def cancel_appointment(
     appointment_id: str,
@@ -508,5 +632,9 @@ def cancel_appointment(
     })
     updated = reference.get()
     return _appointment_response(updated.id, updated.to_dict())
+
+
+
+
 
 
