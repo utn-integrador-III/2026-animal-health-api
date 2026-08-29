@@ -69,6 +69,25 @@ class LabResultService:
             doc_id = doc_ref[1].id
             lab_data["id"] = doc_id
 
+            if owner_id:
+                try:
+                    pet_doc = self.db.collection(Collections.PETS).document(pet_id).get()
+                    pet_name = pet_doc.to_dict().get("name", "Mascota") if pet_doc.exists else "Mascota"
+                    notif = {
+                        "user_id": owner_id,
+                        "pet_id": pet_id,
+                        "type": "lab_request",
+                        "title": f"🧪 Nueva orden de laboratorio para {pet_name}",
+                        "message": f"Se ha solicitado el examen '{test_type}' para {pet_name}.",
+                        "read": False,
+                        "urgency": "info",
+                        "link": f"/client/lab-results?petId={pet_id}",
+                        "created_at": now_iso,
+                    }
+                    self.db.collection(Collections.NOTIFICATIONS).add(notif)
+                except Exception as notif_err:
+                    logger.warning(f"Could not create notification for lab request: {notif_err}")
+
             return lab_data
         except Exception as e:
             logger.error(f"Error creating lab result: {e}")
