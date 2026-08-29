@@ -29,7 +29,7 @@ def check_medication_notifications():
     try:
         import asyncio
         service = NotificationService()
-        result = asyncio.run(service.check_medications_due_for_notification())
+        result = asyncio.run(service.check_medications_due_for_notification(check_time=True))
         logger.info("Medication check completed: %s", result)
     except Exception as e:
         logger.error("Error in medication check: %s", e)
@@ -53,14 +53,14 @@ def start_scheduler():
 
     scheduler.add_job(
         check_vaccine_notifications,
-        trigger=CronTrigger(hour=8, minute=0),
+        trigger=CronTrigger(minute="*"),
         id="vaccine_notifications",
         replace_existing=True
     )
 
     scheduler.add_job(
         check_medication_notifications,
-        trigger=CronTrigger(minute=0),
+        trigger=CronTrigger(minute="*"),
         id="medication_notifications",
         replace_existing=True
     )
@@ -73,6 +73,6 @@ def start_scheduler():
     )
 
     scheduler.start()
-    logger.info("Scheduler started - vaccine notifications daily, medication checks hourly, backups daily at 03:00 AM.")
+    logger.info("Scheduler started - vaccine notifications daily, medication checks minutely, backups daily at 03:00 AM.")
 
     return scheduler

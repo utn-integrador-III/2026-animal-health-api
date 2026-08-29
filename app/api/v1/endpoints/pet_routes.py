@@ -275,6 +275,7 @@ def create_vaccine(
         "raw_status": vaccine_data.raw_status,
         "status": _raw_status_to_status(vaccine_data.raw_status),
         "notes": vaccine_data.notes,
+        "notification_sent": False,
         "veterinarian_id": current_user["id"],
         "veterinarian_name": current_user.get("full_name", "Veterinarian"),
         "created_at": _now(),
