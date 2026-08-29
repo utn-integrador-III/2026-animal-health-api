@@ -57,6 +57,10 @@ class LabResultService:
             if not lab_data.get("requested_at"):
                 lab_data["requested_at"] = datetime.now().isoformat()
 
+            test_type = lab_data.get("test_type") or lab_data.get("exam_type") or "Examen de laboratorio"
+            lab_data["test_type"] = test_type
+            lab_data["exam_type"] = test_type
+
             now_iso = datetime.now().isoformat()
             lab_data["created_at"] = now_iso
             lab_data["updated_at"] = now_iso
