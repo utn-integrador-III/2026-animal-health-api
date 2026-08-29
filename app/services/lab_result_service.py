@@ -1,7 +1,8 @@
 """Lab result service for managing laboratory results."""
 
 import logging
-from datetime import datetime, date  # ← IMPORTAR date
+from datetime import datetime, date
+from typing import Optional, Union
 
 from app.constant import Collections
 from app.firebase_config import get_firestore_db
@@ -19,26 +20,52 @@ class LabResultService:
     def _get_collection(self):
         return self.db.collection(Collections.LAB_RESULTS)
 
-    async def create_lab_result(self, pet_id: str, owner_id: str, data: LabResultCreate) -> dict:
-        """Create a new lab result."""
+    async def create_lab_result(
+        self,
+        pet_id: str,
+        owner_id: str,
+        data: Union[LabResultCreate, dict],
+        veterinarian_id: Optional[str] = None,
+        veterinarian_name: Optional[str] = None,
+    ) -> dict:
+        """Create a new lab result or exam request."""
         try:
-            lab_data = data.model_dump()
-            # 🔥 CONVERSIÓN: Si test_date es un objeto date, convertirlo a string ISO
-            if "test_date" in lab_data and isinstance(lab_data["test_date"], date):
-                lab_data["test_date"] = lab_data["test_date"].isoformat()
-            
+            if hasattr(data, "model_dump"):
+                lab_data = data.model_dump(exclude_unset=False)
+            elif isinstance(data, dict):
+                lab_data = dict(data)
+            else:
+                lab_data = {}
+
+            # Conversion: date to ISO string
+            for date_key in ("test_date", "requested_at", "result_date"):
+                if date_key in lab_data and isinstance(lab_data[date_key], (date, datetime)):
+                    lab_data[date_key] = lab_data[date_key].isoformat()
+
             lab_data["pet_id"] = pet_id
             lab_data["owner_id"] = owner_id
-            lab_data["created_at"] = datetime.now().isoformat()
-            lab_data["updated_at"] = datetime.now().isoformat()
+
+            if veterinarian_id and not lab_data.get("veterinarian_id"):
+                lab_data["veterinarian_id"] = veterinarian_id
+            if veterinarian_name and not lab_data.get("veterinarian_name"):
+                lab_data["veterinarian_name"] = veterinarian_name
+
+            if not lab_data.get("status"):
+                lab_data["status"] = "Solicitado"
+            if not lab_data.get("priority"):
+                lab_data["priority"] = "Normal"
+            if not lab_data.get("requested_at"):
+                lab_data["requested_at"] = datetime.now().isoformat()
+
+            now_iso = datetime.now().isoformat()
+            lab_data["created_at"] = now_iso
+            lab_data["updated_at"] = now_iso
 
             doc_ref = self._get_collection().add(lab_data)
             doc_id = doc_ref[1].id
+            lab_data["id"] = doc_id
 
-            return {
-                "id": doc_id,
-                **lab_data
-            }
+            return lab_data
         except Exception as e:
             logger.error(f"Error creating lab result: {e}")
             raise
@@ -53,11 +80,21 @@ class LabResultService:
             for doc in snapshot:
                 data = doc.to_dict()
                 data["id"] = doc.id
+                # Format dates
+                for date_key in ("test_date", "requested_at", "result_date", "created_at", "updated_at"):
+                    if date_key in data and hasattr(data[date_key], "isoformat"):
+                        data[date_key] = data[date_key].isoformat()
                 results.append(data)
+
+            # Sort descending by requested_at / created_at / test_date
+            results.sort(
+                key=lambda x: str(x.get("requested_at") or x.get("created_at") or x.get("test_date") or ""),
+                reverse=True,
+            )
 
             return {
                 "results": results,
-                "total": len(results)
+                "total": len(results),
             }
         except Exception as e:
             logger.error(f"Error getting lab results for pet {pet_id}: {e}")
@@ -74,15 +111,28 @@ class LabResultService:
 
             data = doc.to_dict()
             data["id"] = doc.id
+            for date_key in ("test_date", "requested_at", "result_date", "created_at", "updated_at"):
+                if date_key in data and hasattr(data[date_key], "isoformat"):
+                    data[date_key] = data[date_key].isoformat()
             return data
         except Exception as e:
             logger.error(f"Error getting lab result {result_id}: {e}")
             raise
 
-    async def update_lab_result(self, result_id: str, data: LabResultUpdate) -> dict:
+    async def update_lab_result(self, result_id: str, data: Union[LabResultUpdate, dict]) -> dict:
         """Update a lab result."""
         try:
-            update_data = data.model_dump(exclude_unset=True)
+            if hasattr(data, "model_dump"):
+                update_data = data.model_dump(exclude_unset=True)
+            elif isinstance(data, dict):
+                update_data = dict(data)
+            else:
+                update_data = {}
+
+            for date_key in ("test_date", "requested_at", "result_date"):
+                if date_key in update_data and isinstance(update_data[date_key], (date, datetime)):
+                    update_data[date_key] = update_data[date_key].isoformat()
+
             update_data["updated_at"] = datetime.now().isoformat()
 
             doc_ref = self._get_collection().document(result_id)

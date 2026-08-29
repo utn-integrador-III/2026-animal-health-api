@@ -7,28 +7,68 @@ from pydantic import BaseModel
 
 class LabResultBase(BaseModel):
     """Base Lab Result model."""
-    pet_id: str
+    pet_id: Optional[str] = None
+    owner_id: Optional[str] = None
+    veterinarian_id: Optional[str] = None
+    veterinarian_name: Optional[str] = None
+    request_id: Optional[str] = None
     test_type: str
-    test_date: date
-    clinical_observations: str
+    priority: Optional[str] = "Normal"
+    reason: Optional[str] = None
+    clinical_observations: Optional[str] = ""
+    status: Optional[str] = "Solicitado"
+    requested_at: Optional[str] = None
+    test_date: Optional[date] = None
+    result_date: Optional[str] = None
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
+    summary: Optional[str] = None
     result_summary: Optional[str] = None
+    observations: Optional[str] = None
+    recommendation: Optional[str] = None
+    attachments: Optional[List[str]] = None
+
+
+class LabResultCreate(BaseModel):
+    """Lab result creation model."""
+    pet_id: Optional[str] = None
+    test_type: str
+    priority: Optional[str] = "Normal"
+    reason: Optional[str] = None
+    clinical_observations: Optional[str] = ""
+    status: Optional[str] = "Solicitado"
+    requested_at: Optional[str] = None
+    test_date: Optional[date] = None
+    result_date: Optional[str] = None
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
+    summary: Optional[str] = None
+    result_summary: Optional[str] = None
+    observations: Optional[str] = None
+    recommendation: Optional[str] = None
     attachments: Optional[List[str]] = None
     veterinarian_id: Optional[str] = None
     veterinarian_name: Optional[str] = None
 
 
-class LabResultCreate(LabResultBase):
-    """Lab result creation model."""
-    pass
-
-
 class LabResultUpdate(BaseModel):
     """Lab result update model."""
     test_type: Optional[str] = None
-    test_date: Optional[date] = None
+    priority: Optional[str] = None
+    reason: Optional[str] = None
     clinical_observations: Optional[str] = None
+    status: Optional[str] = None
+    requested_at: Optional[str] = None
+    test_date: Optional[date] = None
+    result_date: Optional[str] = None
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
+    summary: Optional[str] = None
     result_summary: Optional[str] = None
+    observations: Optional[str] = None
+    recommendation: Optional[str] = None
     attachments: Optional[List[str]] = None
+    veterinarian_id: Optional[str] = None
     veterinarian_name: Optional[str] = None
 
 
