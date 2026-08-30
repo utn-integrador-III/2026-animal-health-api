@@ -1,6 +1,7 @@
-# Animal Health API Routes
+﻿# Animal Health API Routes
 from .vet_admin_routes import router as vet_admin_routes
 __all__ = [
+    "ai_routes",
     "appointment_routes",
     "auth_routes",
     "client_routes",
