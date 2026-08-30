@@ -1,4 +1,4 @@
-import unittest
+﻿import unittest
 from datetime import date, time, datetime, timedelta
 from unittest.mock import patch
 
@@ -389,3 +389,119 @@ class AppointmentTests(unittest.TestCase):
             with self.assertRaises(HTTPException) as ctx:
                 appointment_routes.cancel_appointment("app-1", current_user={"id": "client-1", "role": UserRole.CLIENT})
             self.assertEqual(ctx.exception.status_code, 409)
+
+    def test_past_scheduled_appointment_without_clinical_data_becomes_no_show(self):
+        db = FakeFirestore()
+        db.collection(Collections.PETS).data["pet-1"] = {
+            "name": "Lola",
+            "species": "Bird",
+            "owner_id": "client-1",
+        }
+        db.collection(Collections.APPOINTMENTS).data["appointment-past"] = {
+            **appointment_document(),
+            "appointment_date": (date.today() - timedelta(days=2)).isoformat(),
+            "appointment_time": "09:00",
+            "status": schemas.AppointmentStatus.SCHEDULED,
+        }
+
+        with patch.object(appointment_routes, "get_firestore_db", return_value=db):
+            appointments = appointment_routes.list_appointments(
+                current_user={"id": "vet-1", "role": UserRole.VETERINARIAN},
+            )
+
+        self.assertEqual(appointments[0].status, schemas.AppointmentStatus.NO_SHOW)
+        self.assertEqual(
+            db.collection(Collections.APPOINTMENTS).data["appointment-past"]["status"],
+            schemas.AppointmentStatus.NO_SHOW,
+        )
+
+    def test_past_scheduled_appointment_with_clinical_data_becomes_completed(self):
+        db = FakeFirestore()
+        db.collection(Collections.PETS).data["pet-1"] = {
+            "name": "Lola",
+            "species": "Bird",
+            "owner_id": "client-1",
+        }
+        db.collection(Collections.APPOINTMENTS).data["appointment-past"] = {
+            **appointment_document(),
+            "appointment_date": (date.today() - timedelta(days=2)).isoformat(),
+            "appointment_time": "09:00",
+            "status": schemas.AppointmentStatus.SCHEDULED,
+            "clinical_observation": "The pet received veterinary care.",
+        }
+
+        with patch.object(appointment_routes, "get_firestore_db", return_value=db):
+            appointments = appointment_routes.list_appointments(
+                current_user={"id": "vet-1", "role": UserRole.VETERINARIAN},
+            )
+
+        self.assertEqual(appointments[0].status, schemas.AppointmentStatus.COMPLETED)
+        self.assertEqual(
+            db.collection(Collections.APPOINTMENTS).data["appointment-past"]["status"],
+            schemas.AppointmentStatus.COMPLETED,
+        )
+    def test_same_day_scheduled_appointment_stays_scheduled(self):
+        db = FakeFirestore()
+        db.collection(Collections.PETS).data["pet-1"] = {
+            "name": "Lola",
+            "species": "Bird",
+            "owner_id": "client-1",
+        }
+        db.collection(Collections.APPOINTMENTS).data["appointment-today"] = {
+            **appointment_document(),
+            "appointment_date": date.today().isoformat(),
+            "appointment_time": "00:00",
+            "status": schemas.AppointmentStatus.SCHEDULED,
+        }
+
+        with patch.object(appointment_routes, "get_firestore_db", return_value=db):
+            appointments = appointment_routes.list_appointments(
+                current_user={"id": "vet-1", "role": UserRole.VETERINARIAN},
+            )
+
+        self.assertEqual(appointments[0].status, schemas.AppointmentStatus.SCHEDULED)
+        self.assertEqual(
+            db.collection(Collections.APPOINTMENTS).data["appointment-today"]["status"],
+            schemas.AppointmentStatus.SCHEDULED,
+        )
+
+    def test_veterinarian_can_mark_scheduled_appointment_as_no_show(self):
+        db = FakeFirestore()
+        db.collection(Collections.USERS).data["vet-1"] = {"role": UserRole.VETERINARIAN}
+        db.collection(Collections.APPOINTMENTS).data["appointment-1"] = appointment_document()
+
+        with patch.object(appointment_routes, "get_firestore_db", return_value=db):
+            response = appointment_routes.mark_appointment_no_show(
+                "appointment-1",
+                current_user={"id": "vet-1", "role": UserRole.VETERINARIAN},
+            )
+            slots = appointment_routes.available_slots(
+                appointment_date=response.appointment_date.isoformat(),
+                veterinarian_id="vet-1",
+                duration_blocks=1,
+                current_user={"id": "client-1", "role": UserRole.CLIENT},
+            )
+
+        stored = db.collection(Collections.APPOINTMENTS).data["appointment-1"]
+        self.assertEqual(response.status, schemas.AppointmentStatus.NO_SHOW)
+        self.assertEqual(stored["status"], schemas.AppointmentStatus.NO_SHOW)
+        self.assertIn("no_show_at", stored)
+        self.assertIn("09:00", slots.slots)
+
+    def test_veterinarian_cannot_mark_attended_appointment_as_no_show(self):
+        db = FakeFirestore()
+        db.collection(Collections.APPOINTMENTS).data["appointment-1"] = appointment_document()
+        db.collection(Collections.MEDICATIONS).data["medication-1"] = {
+            "appointment_id": "appointment-1",
+            "pet_id": "pet-1",
+            "name": "Vitamina B12",
+        }
+
+        with patch.object(appointment_routes, "get_firestore_db", return_value=db):
+            with self.assertRaises(HTTPException) as context:
+                appointment_routes.mark_appointment_no_show(
+                    "appointment-1",
+                    current_user={"id": "vet-1", "role": UserRole.VETERINARIAN},
+                )
+
+        self.assertEqual(context.exception.status_code, 409)

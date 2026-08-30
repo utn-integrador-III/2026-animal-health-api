@@ -261,6 +261,7 @@ class AppointmentStatus:
     SCHEDULED = "scheduled"
     CANCELLED = "cancelled"
     COMPLETED = "completed"
+    NO_SHOW = "no_show"
 
 
 class AppointmentCreate(BaseModel):
@@ -357,6 +358,7 @@ class AppointmentResponse(BaseModel):
     updated_at: Optional[str] = None
     cancelled_at: Optional[str] = None
     completed_at: Optional[str] = None
+    no_show_at: Optional[str] = None
     clinical_observation: Optional[str] = None
 
 
@@ -794,4 +796,7 @@ class PetCareRecommendationResponse(BaseModel):
     generated_at: Optional[str] = None
     recommendation_id: Optional[str] = None
     history: List[PetCareRecommendationVersion] = Field(default_factory=list)
+
+
+
 
