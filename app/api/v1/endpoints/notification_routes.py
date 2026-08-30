@@ -30,6 +30,11 @@ async def get_user_notifications(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User ID not found")
 
         service = NotificationService()
+        try:
+            await service.check_medications_due_for_notification(check_time=False)
+        except Exception:
+            pass
+
         result = await service.get_user_notifications(
             user_id=user_id,
             only_unread=only_unread,

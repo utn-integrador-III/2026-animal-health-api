@@ -11,8 +11,10 @@ class LabResultBase(BaseModel):
     owner_id: Optional[str] = None
     veterinarian_id: Optional[str] = None
     veterinarian_name: Optional[str] = None
+    appointment_id: Optional[str] = None
     request_id: Optional[str] = None
-    test_type: str
+    test_type: Optional[str] = None
+    exam_type: Optional[str] = None
     priority: Optional[str] = "Normal"
     reason: Optional[str] = None
     clinical_observations: Optional[str] = ""
@@ -32,7 +34,8 @@ class LabResultBase(BaseModel):
 class LabResultCreate(BaseModel):
     """Lab result creation model."""
     pet_id: Optional[str] = None
-    test_type: str
+    test_type: Optional[str] = None
+    exam_type: Optional[str] = None
     priority: Optional[str] = "Normal"
     reason: Optional[str] = None
     clinical_observations: Optional[str] = ""
@@ -49,6 +52,7 @@ class LabResultCreate(BaseModel):
     attachments: Optional[List[str]] = None
     veterinarian_id: Optional[str] = None
     veterinarian_name: Optional[str] = None
+    appointment_id: Optional[str] = None
 
 
 class LabResultUpdate(BaseModel):

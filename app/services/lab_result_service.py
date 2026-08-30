@@ -57,6 +57,10 @@ class LabResultService:
             if not lab_data.get("requested_at"):
                 lab_data["requested_at"] = datetime.now().isoformat()
 
+            test_type = lab_data.get("test_type") or lab_data.get("exam_type") or "Examen de laboratorio"
+            lab_data["test_type"] = test_type
+            lab_data["exam_type"] = test_type
+
             now_iso = datetime.now().isoformat()
             lab_data["created_at"] = now_iso
             lab_data["updated_at"] = now_iso
@@ -64,6 +68,25 @@ class LabResultService:
             doc_ref = self._get_collection().add(lab_data)
             doc_id = doc_ref[1].id
             lab_data["id"] = doc_id
+
+            if owner_id:
+                try:
+                    pet_doc = self.db.collection(Collections.PETS).document(pet_id).get()
+                    pet_name = pet_doc.to_dict().get("name", "Mascota") if pet_doc.exists else "Mascota"
+                    notif = {
+                        "user_id": owner_id,
+                        "pet_id": pet_id,
+                        "type": "lab_request",
+                        "title": f"🧪 Nueva orden de laboratorio para {pet_name}",
+                        "message": f"Se ha solicitado el examen '{test_type}' para {pet_name}.",
+                        "read": False,
+                        "urgency": "info",
+                        "link": f"/client/lab-results?petId={pet_id}",
+                        "created_at": now_iso,
+                    }
+                    self.db.collection(Collections.NOTIFICATIONS).add(notif)
+                except Exception as notif_err:
+                    logger.warning(f"Could not create notification for lab request: {notif_err}")
 
             return lab_data
         except Exception as e:

@@ -167,6 +167,38 @@ async def upload_lab_result_file(
         result_date=datetime.now().strftime("%Y-%m-%d"),
     )
     updated = await service.update_lab_result(result_id, update_payload)
+
+    # Notify pet owner of result availability
+    try:
+        db = get_firestore_db()
+        owner_id = existing.get("owner_id")
+        test_name = existing.get("test_type") or existing.get("exam_type") or "Examen de laboratorio"
+        if not owner_id and pet_id:
+            pdoc = db.collection(Collections.PETS).document(pet_id).get()
+            if pdoc.exists:
+                owner_id = pdoc.to_dict().get("owner_id")
+                pet_name = pdoc.to_dict().get("name", "Mascota")
+            else:
+                pet_name = "Mascota"
+        else:
+            pet_name = "Mascota"
+
+        if owner_id:
+            notif = {
+                "user_id": owner_id,
+                "pet_id": pet_id,
+                "type": "lab_result_available",
+                "title": f"📄 Resultado de laboratorio disponible ({pet_name})",
+                "message": f"El resultado del examen '{test_name}' para {pet_name} ya está disponible para consultar y descargar.",
+                "read": False,
+                "urgency": "info",
+                "link": f"/client/lab-results?petId={pet_id}",
+                "created_at": datetime.now().isoformat(),
+            }
+            db.collection(Collections.NOTIFICATIONS).add(notif)
+    except Exception as notif_err:
+        pass
+
     return updated
 
 
