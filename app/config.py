@@ -4,6 +4,11 @@ import os
 import warnings
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BASE_DIR / ".env")
+
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
 
@@ -25,14 +30,34 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
 
 FIREBASE_SERVICE_ACCOUNT = os.getenv(
     "FIREBASE_SERVICE_ACCOUNT",
-    str(Path(__file__).resolve().parents[1] / "serviceAccountKey.json"),
+    str(BASE_DIR / "serviceAccountKey.json"),
 )
+FIREBASE_SERVICE_ACCOUNT_JSON = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "")
 
 ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "ALLOWED_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175",
     ).split(",")
     if origin.strip()
 ]
+
+FIREBASE_STORAGE_BUCKET = os.getenv(
+    "FIREBASE_STORAGE_BUCKET",
+    "animalhealth-fe1e8.firebasestorage.app",
+)
+
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+BREVO_FROM_EMAIL = os.getenv("BREVO_FROM_EMAIL", "")
+BREVO_FROM_NAME = os.getenv("BREVO_FROM_NAME", "Animal Health")
+CONTACT_RECEIVER_EMAIL = os.getenv("CONTACT_RECEIVER_EMAIL", "ediloma21@gmail.com")
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").strip().lower()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_FALLBACK_MODELS = [
+    model.strip()
+    for model in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-2.0-flash,gemini-1.5-flash").split(",")
+    if model.strip()
+]
+
